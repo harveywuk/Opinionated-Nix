@@ -43,11 +43,13 @@ off() {
 
 recover() {
   if ! omarchy-hyprland-monitor-external-active; then
+    # Only wake the panel when we actually re-enable a force-disabled internal
+    # display. This runs on every ~2s clamshell poll, so an unconditional wake
+    # would fight the idle/lock blank and turn the screen back on within seconds.
     if omarchy-hyprland-toggle-enabled $TOGGLE; then
       omarchy-hyprland-toggle $TOGGLE off
+      wake
     fi
-
-    wake
   fi
 }
 

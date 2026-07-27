@@ -84,6 +84,13 @@ dpms_internal() {
   hyprctl dispatch "hl.dsp.dpms({ action = \"$action\", monitor = \"$INTERNAL\" })" >/dev/null 2>&1 || true
 }
 
+internal_output_disabled() {
+  [[ -n $INTERNAL ]] || return 1
+  local disabled
+  disabled=$(hyprctl monitors all -j | jq -r --arg internal "$INTERNAL" '.[] | select(.name == $internal) | .disabled')
+  [[ $disabled == true ]]
+}
+
 enable_internal() {
   local changed=0
 
@@ -97,9 +104,16 @@ enable_internal() {
   fi
 
   [[ -f $MANUAL_DISABLE_FLAG ]] && omarchy-hyprland-monitor-external-active && return 0
-  remember_internal_scale
-  enable_internal_output
-  dpms_internal enable
+
+  # Only actively re-enable the internal output when it is genuinely disabled
+  # (e.g. just came out of clamshell). This runs on every ~2s poll, so forcing
+  # dpms enable unconditionally would fight the idle/lock blank and wake the
+  # panel back on within seconds.
+  if (( changed )) || internal_output_disabled; then
+    remember_internal_scale
+    enable_internal_output
+    dpms_internal enable
+  fi
 }
 
 disable_internal() {
