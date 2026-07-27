@@ -118,4 +118,10 @@
     vscode-theme = "Lumon";
     custom-scheme = true;
   };
+
+  "lupine" = {
+    base16-theme = "lupine";
+    vscode-theme = "Lupine";
+    custom-scheme = true;
+  };
 }

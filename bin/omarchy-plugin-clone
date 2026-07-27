@@ -15,7 +15,7 @@ fail() {
 }
 
 require_command() {
-  command -v "$1" >/dev/null 2>&1 || fail "$1 is required"
+  omarchy-cmd-present "$1" || fail "$1 is required"
 }
 
 require_omarchy_path() {
@@ -24,10 +24,6 @@ require_omarchy_path() {
 
 interactive() {
   [[ -t 0 && -t 1 ]]
-}
-
-canonical_widget_id() {
-  printf '%s' "$1"
 }
 
 slug_id() {
@@ -39,7 +35,6 @@ validate_plugin_id() {
   [[ $id =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || fail "plugin id must contain only letters, numbers, dots, underscores, and dashes"
   [[ $id == *.* ]] || fail "plugin id must be namespaced, e.g. local.clock"
   [[ $id != omarchy.* ]] || fail "plugin ids beginning with omarchy. are reserved for built-ins"
-  [[ $(canonical_widget_id "$id") == "$id" ]] || fail "$id is a reserved built-in widget id"
 }
 
 catalog_json() {
@@ -52,10 +47,7 @@ catalog_json() {
 # built-in bar widget matching $1 (by id or alias). Used to find the source QML
 # file and metadata to copy when cloning a widget.
 builtin_widget_info() {
-  local wanted
-  wanted=$(canonical_widget_id "$1")
-
-  catalog_json | jq -r --arg id "$wanted" '
+  catalog_json | jq -r --arg id "$1" '
     .[] | select((.kinds | index("bar-widget")) and .barWidgetPath != null)
     | select(.id == $id or (((.barWidget.aliases // [])) | index($id)))
     | [.id, .barWidgetPath, (.barWidget.displayName // .name // .id), (.barWidget.category // "Plugin"), (if .barWidget.allowMultiple == true then "true" else "false" end)]
@@ -76,12 +68,6 @@ choose_clone_source() {
   selected=$(clone_source_options | awk -F '\t' '{ printf "%-32s  %-15s  %s\n", $3, $2, $1 }' \
     | gum filter --header "Clone plugin" --placeholder "Search built-in and user plugins..." --limit 1) || return 1
   awk '{ print $NF }' <<<"$selected"
-}
-
-choose_value() {
-  local prompt="$1"
-  shift
-  gum choose --header "$prompt" "$@"
 }
 
 input_value() {
@@ -111,6 +97,19 @@ def resolve_relative(match):
     return match.group(0)
 
 text = re.sub(r'Qt\.resolvedUrl\("([^"]+)"\)', resolve_relative, text)
+
+
+# A widget that imports a sibling JS module (the clock's Model.js) clones into
+# a directory that does not have it. Point the import back at the bundled file,
+# the same way Qt.resolvedUrl() references above are rewritten.
+def resolve_js_import(match):
+    rel = match.group(1)
+    if rel.startswith("/") or "://" in rel:
+        return match.group(0)
+    resolved = (source_path.parent / rel).resolve()
+    return 'import "' + resolved.as_uri() + '"'
+
+text = re.sub(r'import\s+"([^"]+\.js)"', resolve_js_import, text)
 
 # Indicators dynamically loads sibling indicator components via string
 # concatenation, so the simple Qt.resolvedUrl("literal") rewrite above cannot
@@ -286,7 +285,6 @@ clone_command() {
       fail "clone source is required"
     fi
   fi
-  source_id=$(canonical_widget_id "$source_id")
 
   local default_slug
   default_slug=$(slug_id "$source_id")
@@ -356,10 +354,10 @@ clone_command() {
   omarchy-shell -q shell rescanPlugins >/dev/null 2>&1 || true
 
   if [[ $replace == "true" ]]; then
-    omarchy-bar replace "$source_id" "$new_id"
+    omarchy-bar-plugin replace "$source_id" "$new_id"
     echo "Cloned $source_id to $new_id and replaced the first bar instance"
   elif [[ $add == "true" ]]; then
-    omarchy-bar add "$new_id" "${placement[@]}"
+    omarchy-bar-plugin add "$new_id" "${placement[@]}"
     echo "Cloned $source_id to $new_id"
   elif [[ $use_bar == "true" ]]; then
     omarchy-bar use "$new_id"

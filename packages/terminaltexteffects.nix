@@ -3,7 +3,6 @@
   python3Packages,
   fetchPypi,
 }:
-
 python3Packages.buildPythonApplication rec {
   pname = "terminaltexteffects";
   version = "0.14.2";

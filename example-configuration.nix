@@ -13,7 +13,12 @@
     };
   };
 
-  outputs = { nixpkgs, omarchy-nix, home-manager, ... }: {
+  outputs = {
+    nixpkgs,
+    omarchy-nix,
+    home-manager,
+    ...
+  }: {
     nixosConfigurations.your-hostname = nixpkgs.lib.nixosSystem {
       modules = [
         omarchy-nix.nixosModules.default
@@ -30,14 +35,14 @@
             seamless_boot = {
               enable = true;
               # username defaults to omarchy.username (can override if needed)
-              plymouth_theme = "omarchy";  # Default
-              silent_boot = true;          # Default
+              plymouth_theme = "omarchy"; # Default
+              silent_boot = true; # Default
             };
           };
-          
+
           home-manager = {
             users.your-username = {
-              imports = [ omarchy-nix.homeManagerModules.default ];
+              imports = [omarchy-nix.homeManagerModules.default];
             };
           };
         }

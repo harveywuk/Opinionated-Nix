@@ -35,10 +35,16 @@ function displayHostName(hostName, dnsName) {
   return shortDnsName(dnsName) || host || "Unknown"
 }
 
+function isMullvadHost(name) {
+  var value = String(name || "").toLowerCase()
+  var suffix = ".mullvad.ts.net"
+  return value.length > suffix.length && value.indexOf(suffix) === value.length - suffix.length
+}
+
 function isMullvadPeer(peer) {
-  var hostName = String((peer && peer.HostName) || "").toLowerCase()
-  var dnsName = cleanDnsName((peer && peer.DNSName) || "").toLowerCase()
-  return dnsName.indexOf(".mullvad.ts.net") !== -1 || hostName.indexOf(".mullvad.ts.net") !== -1
+  var hostName = String((peer && peer.HostName) || "")
+  var dnsName = cleanDnsName((peer && peer.DNSName) || "")
+  return isMullvadHost(dnsName) || isMullvadHost(hostName)
 }
 
 function osIcon(os) {
@@ -59,10 +65,43 @@ function accountLabel(account) {
   return String(account.id || "Unknown account")
 }
 
+function loginPlan(needsLogin, authUrl) {
+  var url = String(authUrl || "").trim()
+  if (needsLogin === true && /^https?:\/\//.test(url)) {
+    return { authUrl: url, command: [] }
+  }
+  return { authUrl: "", command: ["tailscale", "up"] }
+}
+
+// Taildrop is a tailnet feature the admin can turn off, so the button for it
+// only makes sense when this profile actually carries the capability.
+function hasFileSharing(self) {
+  var capability = "https://tailscale.com/cap/file-sharing"
+  var capMap = (self && self.CapMap) || null
+  if (capMap && capMap[capability] !== undefined) return true
+  var capabilities = (self && self.Capabilities) || []
+  for (var i = 0; i < capabilities.length; i++) {
+    if (String(capabilities[i]) === capability) return true
+  }
+  return false
+}
+
+// Tailscale grades every peer itself — offline, wrong owner, an OS without
+// Taildrop, no peer API — so take its word when the status carries one, and
+// fall back to same-owner for daemons too old to say.
+function isTaildropTarget(peer, selfUserId) {
+  var target = peer && peer.TaildropTarget
+  if (typeof target === "number" && target !== 0) return target === 1
+  var owner = String((peer && peer.UserID) || "")
+  return owner !== "" && owner === String(selfUserId || "")
+}
+
 function peerFromStatus(id, peer) {
   return {
     id: id,
     HostName: displayHostName(peer.HostName, peer.DNSName),
+    UserID: String(peer.UserID || ""),
+    TaildropTarget: typeof peer.TaildropTarget === "number" ? peer.TaildropTarget : 0,
     DNSName: cleanDnsName(peer.DNSName),
     DisplayName: displayHostName(peer.HostName, peer.DNSName),
     TailscaleIPs: filterIPv4(peer.TailscaleIPs || []),
@@ -112,7 +151,7 @@ function parseExitNodeList(raw) {
     var country = sliceTableColumn(line, countryStart, cityStart)
     var city = sliceTableColumn(line, cityStart, statusStart)
     var status = sliceTableColumn(line, statusStart, -1)
-    if (host.indexOf(".mullvad.ts.net") === -1) continue
+    if (!isMullvadHost(host)) continue
 
     byHost[host] = {
       id: "mullvad:" + host,
@@ -221,6 +260,8 @@ function parseStatus(raw) {
       selfName: displayHostName(self.HostName, self.DNSName),
       selfDnsName: cleanDnsName(self.DNSName),
       selfIp: selfIps.length > 0 ? selfIps[0] : "",
+      selfUserId: String(self.UserID || ""),
+      fileSharing: hasFileSharing(self),
       peers: peers,
       exitNodes: exitNodes
     }
@@ -270,6 +311,9 @@ if (typeof module !== "undefined") {
     displayHostName: displayHostName,
     osIcon: osIcon,
     accountLabel: accountLabel,
+    loginPlan: loginPlan,
+    hasFileSharing: hasFileSharing,
+    isTaildropTarget: isTaildropTarget,
     isMullvadPeer: isMullvadPeer,
     peerFromStatus: peerFromStatus,
     parseExitNodeList: parseExitNodeList,

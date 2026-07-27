@@ -1,14 +1,14 @@
-{ lib
-, stdenv
-, fetchurl
-, autoPatchelfHook
-, makeWrapper
-, alsa-lib
-, vulkan-loader
-, wtype
-, wl-clipboard
+{
+  lib,
+  stdenv,
+  fetchurl,
+  autoPatchelfHook,
+  makeWrapper,
+  alsa-lib,
+  vulkan-loader,
+  wtype,
+  wl-clipboard,
 }:
-
 stdenv.mkDerivation rec {
   pname = "voxtype";
   version = "0.7.5";
@@ -60,14 +60,14 @@ stdenv.mkDerivation rec {
     # Wrap the Vulkan variant. XDG_DATA_DIRS -> /run/opengl-driver/share so the
     # Vulkan loader finds the RADV ICD; GGML_VK_VISIBLE_DEVICES pins the GPU.
     wrapProgram $out/lib/voxtype/voxtype-vulkan \
-      --prefix PATH : ${lib.makeBinPath [ wtype wl-clipboard ]} \
-      --prefix LD_LIBRARY_PATH : ${lib.makeLibraryPath [ vulkan-loader ]} \
+      --prefix PATH : ${lib.makeBinPath [wtype wl-clipboard]} \
+      --prefix LD_LIBRARY_PATH : ${lib.makeLibraryPath [vulkan-loader]} \
       --prefix XDG_DATA_DIRS : /run/opengl-driver/share \
       --set GGML_VK_VISIBLE_DEVICES 0
 
     # Wrap the avx2 CPU fallback variant.
     wrapProgram $out/lib/voxtype/voxtype-avx2 \
-      --prefix PATH : ${lib.makeBinPath [ wtype wl-clipboard ]}
+      --prefix PATH : ${lib.makeBinPath [wtype wl-clipboard]}
 
     # Main CLI entry point = the Vulkan build.
     ln -s $out/lib/voxtype/voxtype-vulkan $out/bin/voxtype
@@ -79,7 +79,7 @@ stdenv.mkDerivation rec {
     description = "Local voice dictation using Whisper/Parakeet AI";
     homepage = "https://github.com/peteonrails/voxtype";
     license = licenses.mit;
-    platforms = [ "x86_64-linux" ];
-    maintainers = [ ];
+    platforms = ["x86_64-linux"];
+    maintainers = [];
   };
 }

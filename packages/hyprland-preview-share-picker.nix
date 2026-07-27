@@ -1,11 +1,11 @@
-{ lib
-, rustPlatform
-, fetchFromGitHub
-, pkg-config
-, gtk4
-, gtk4-layer-shell
+{
+  lib,
+  rustPlatform,
+  fetchFromGitHub,
+  pkg-config,
+  gtk4,
+  gtk4-layer-shell,
 }:
-
 rustPlatform.buildRustPackage rec {
   pname = "hyprland-preview-share-picker";
   version = "0.2.1";
@@ -34,6 +34,6 @@ rustPlatform.buildRustPackage rec {
     homepage = "https://github.com/WhySoBad/hyprland-preview-share-picker";
     license = licenses.gpl3Only;
     platforms = platforms.linux;
-    maintainers = [ ];
+    maintainers = [];
   };
 }

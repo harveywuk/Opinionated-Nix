@@ -42,9 +42,21 @@ in {
 
       # Universal copy/paste (works with Hyprland's Super+C/V → Ctrl/Shift+Insert mapping)
       keyboard.bindings = [
-        { key = "Insert"; mods = "Shift"; action = "Paste"; }
-        { key = "Insert"; mods = "Control"; action = "Copy"; }
-        { key = "Return"; mods = "Shift"; chars = "\\u001B\\r"; }
+        {
+          key = "Insert";
+          mods = "Shift";
+          action = "Paste";
+        }
+        {
+          key = "Insert";
+          mods = "Control";
+          action = "Copy";
+        }
+        {
+          key = "Return";
+          mods = "Shift";
+          chars = "\\u001B\\r";
+        }
       ];
     };
   };

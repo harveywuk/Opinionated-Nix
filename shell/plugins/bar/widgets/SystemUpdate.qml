@@ -28,11 +28,11 @@ BarWidget {
     target: "omarchy.system-update"
 
     function refresh(): void {
-      root.refresh()
+      root.broadcast("refresh")
     }
 
     function clear(): void {
-      root.clear()
+      root.broadcast("clear")
     }
   }
 
@@ -52,13 +52,14 @@ BarWidget {
     onTriggered: root.refresh()
   }
 
-  WidgetButton {
+  BarIconButton {
     id: button
     anchors.fill: parent
     bar: root.bar
     text: "\uf021"
+    slotSize: Style.bar.statusSlot
     fontSize: Style.font.caption
-    tooltipText: ""
+    tooltipText: "Pending Omarchy Updates"
     onPressed: root.runUpdate()
   }
 }

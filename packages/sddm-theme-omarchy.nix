@@ -1,5 +1,8 @@
-{ pkgs, lib, ... }:
-
+{
+  pkgs,
+  lib,
+  ...
+}:
 pkgs.stdenvNoCC.mkDerivation {
   pname = "sddm-theme-omarchy";
   version = "1.0";

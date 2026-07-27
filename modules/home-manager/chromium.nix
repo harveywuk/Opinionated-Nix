@@ -1,5 +1,6 @@
 {
   config,
+  lib,
   pkgs,
   ...
 }: {
@@ -10,6 +11,20 @@
     source = ../../default/chromium/extensions/copy-url;
     recursive = true;
   };
+
+  # Copy URL now hands the URL to a native messaging host, which owns the
+  # Wayland clipboard write and the confirmation toast (the old in-page
+  # clipboard write only worked on focused, non-restricted pages).
+  home.file.".local/share/omarchy/default/chromium/native-messaging-hosts/com.omarchy.copy_url.json".source =
+    ../../default/chromium/native-messaging-hosts/com.omarchy.copy_url.json;
+
+  # Upstream registers the host from the installer/migration. The manifest has
+  # to name an absolute path per browser profile dir, so run the same script on
+  # activation instead of writing each NativeMessagingHosts file declaratively.
+  home.activation.registerChromiumCopyUrlHost = lib.hm.dag.entryAfter ["writeBoundary"] ''
+    OMARCHY_PATH="$HOME/.local/share/omarchy" \
+      $DRY_RUN_CMD "$HOME/.local/share/omarchy/bin/omarchy-install-chromium-copy-url" || true
+  '';
 
   xdg.configFile."chromium-flags.conf".text = ''
     --ozone-platform=wayland
@@ -32,7 +47,7 @@
     };
     browser = {
       theme = {
-        color_scheme = 2;  # Dark mode
+        color_scheme = 2; # Dark mode
         user_color = 2;
       };
     };

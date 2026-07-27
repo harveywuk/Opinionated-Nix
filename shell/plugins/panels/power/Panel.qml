@@ -149,7 +149,7 @@ Panel {
     profiles = parsed.profiles
     activeProfile = parsed.activeProfile
     profileIndex = parsed.profileIndex
-    if (opened && activeProfile !== "") {
+    if (opened && !cursorActive) {
       var idx = profiles.indexOf(activeProfile)
       if (idx >= 0) profileIndex = idx
     }
@@ -157,7 +157,7 @@ Panel {
 
   function setProfile(profile) {
     if (!profile || actionProc.running) return
-    actionProc.command = ["powerprofilesctl", "set", profile]
+    actionProc.command = ["omarchy-powerprofiles-set", root.discharging ? "battery" : "ac", profile]
     actionProc.running = true
   }
 
@@ -249,13 +249,11 @@ Panel {
     }
   }
 
-  WidgetButton {
+  BarIconButton {
     id: button
     anchors.fill: parent
     bar: root.bar
     text: root.batteryIcon()
-    fixedWidth: root.bar && root.bar.vertical ? -1 : Style.space(27)
-    fixedHeight: root.bar && root.bar.vertical ? Style.space(26) : -1
     tooltipText: ""
     onPressed: function(b) { if (root.batteryPresent) root.toggle() }
   }

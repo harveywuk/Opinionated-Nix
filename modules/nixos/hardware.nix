@@ -37,7 +37,7 @@ in {
     # Intel Panther Lake FRED
     # Mirrors install/config/hardware/intel/fred.sh
     (lib.mkIf hw.intel_ptl_fred.enable {
-      boot.kernelParams = [ "fred=on" ];
+      boot.kernelParams = ["fred=on"];
     })
 
     # ASUS Zenbook UX5406AA (Panther Lake / Xe3) display backlight
@@ -45,7 +45,7 @@ in {
     # Without xe.enable_dpcd_backlight=1 the panel reads as PWM-only from VBT
     # but actually wants DPCD AUX, so brightness is effectively binary.
     (lib.mkIf hw.asus_zenbook_ux5406aa.enable {
-      boot.kernelParams = [ "xe.enable_dpcd_backlight=1" ];
+      boot.kernelParams = ["xe.enable_dpcd_backlight=1"];
     })
 
     # Intel Panther Lake hardware video acceleration
@@ -63,7 +63,7 @@ in {
     # Sound Open Firmware for non-XPS Intel PTL audio DSP
     # Mirrors install/config/hardware/intel/sof-firmware.sh
     (lib.mkIf hw.intel_ptl_sof_firmware.enable {
-      hardware.firmware = [ pkgs.sof-firmware ];
+      hardware.firmware = [pkgs.sof-firmware];
     })
 
     # Lenovo Yoga Pro 7 14IAH10 bass speaker pin quirk

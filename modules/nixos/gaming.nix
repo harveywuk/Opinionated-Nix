@@ -29,9 +29,9 @@ in {
         enable = true;
         remotePlay.openFirewall = true;
         dedicatedServer.openFirewall = true;
-        extraCompatPackages = with pkgs; [ proton-ge-bin ];
+        extraCompatPackages = with pkgs; [proton-ge-bin];
       };
-      environment.systemPackages = [ pkgs.steam ];
+      environment.systemPackages = [pkgs.steam];
     })
 
     # 32-bit GPU libraries (default-on with umbrella; required by most games)
@@ -48,7 +48,7 @@ in {
     (lib.mkIf gaming.xboxControllers.enable {
       hardware.xone.enable = lib.mkDefault true;
       hardware.xpadneo.enable = lib.mkDefault true;
-      boot.kernelModules = [ "uinput" ];
+      boot.kernelModules = ["uinput"];
       environment.systemPackages = with pkgs; [
         xboxdrv
         linuxConsoleTools
@@ -65,7 +65,7 @@ in {
 
     # Heroic Games Launcher (Epic / GOG)
     (lib.mkIf gaming.heroic.enable {
-      environment.systemPackages = [ pkgs.heroic ];
+      environment.systemPackages = [pkgs.heroic];
     })
 
     # Lutris (also covers Battle.net via runtime install scripts)
@@ -79,7 +79,7 @@ in {
 
     # Moonlight game streaming client
     (lib.mkIf gaming.moonlight.enable {
-      environment.systemPackages = [ pkgs.moonlight-qt ];
+      environment.systemPackages = [pkgs.moonlight-qt];
     })
 
     # RetroArch with assets and a default cores selection

@@ -17,7 +17,7 @@ Panel {
   readonly property var source: Pipewire.defaultAudioSource
   readonly property var nodes: Pipewire.nodes ? Pipewire.nodes.values : []
   readonly property var mprisPlayers: Mpris.players ? Mpris.players.values : []
-  readonly property var mediaService: bar && bar.shell ? bar.shell.firstPartyServiceFor("omarchy.media") : null
+  readonly property var mediaService: bar?.shell?.firstPartyServiceFor("omarchy.media")
   readonly property var activeMediaPlayer: mediaService ? mediaService.activePlayer : null
 
   readonly property var candidateSinks: {
@@ -46,7 +46,11 @@ Panel {
     var list = []
     for (var i = 0; i < nodes.length; i++) {
       var n = nodes[i]
-      if (n && n.isStream && isPlaybackStream(n)) list.push(n)
+      if (!n || !n.isStream || !isPlaybackStream(n)) continue
+      // A tuning's output is a playback stream too, but it is the processing
+      // itself rather than an application, so it does not belong in the list.
+      if (String(n.name || "").indexOf("omarchy_speaker_tuning") === 0) continue
+      list.push(n)
     }
     return list
   }
@@ -105,8 +109,39 @@ Panel {
   property var displayAudioSources: []
   property var displayAudioStreams: []
 
-  readonly property real outputVolume: sink && sink.audio ? sink.audio.volume : 0
-  readonly property bool outputMuted: sink && sink.audio ? sink.audio.muted : false
+  // A DSP sink -- a speaker tuning, or EasyEffects -- can be the selected output
+  // without being where loudness lives: changing its volume alters the level going
+  // *into* the processing, so the slider would move while the speakers did not,
+  // and on a chain with a limiter it would change the tone as well.
+  //
+  // omarchy-audio-output-sink resolves the *current* default output through any
+  // such sink to the physical one, which is the same definition the volume keys
+  // and the output switcher use. Resolving the default (rather than "whatever a
+  // tuning fronts") is what keeps this correct when headphones or HDMI are
+  // selected while a tuning still exists.
+  property string volumeSinkName: ""
+
+  readonly property var volumeSink: {
+    if (volumeSinkName === "" || !sink) return sink
+    if (volumeSinkName === String(sink.name)) return sink
+    for (var i = 0; i < nodes.length; i++) {
+      var n = nodes[i]
+      if (n && n.isSink && !n.isStream && String(n.name) === volumeSinkName && n.audio)
+        return n
+    }
+    return sink
+  }
+
+  // Re-resolve whenever the selected output changes; the timer below is only a
+  // safety net for the tuning being applied or removed underneath us.
+  onSinkChanged: resolveVolumeSink()
+
+  function resolveVolumeSink() {
+    if (!volumeSinkProc.running) volumeSinkProc.running = true
+  }
+
+  readonly property real outputVolume: volumeSink && volumeSink.audio ? volumeSink.audio.volume : 0
+  readonly property bool outputMuted: volumeSink && volumeSink.audio ? volumeSink.audio.muted : false
   readonly property real inputVolume: source && source.audio ? source.audio.volume : 0
   readonly property bool inputMuted: source && source.audio ? source.audio.muted : false
 
@@ -126,6 +161,11 @@ Panel {
   property string focusSection: "output"
   property int selectedIndex: -1
   property bool cursorActive: false
+
+  // "header" is a virtual section for the hero output mute toggle; it sits
+  // above the output section so the speaker can be muted from the keyboard.
+  readonly property bool headerHasCursor: cursorActive && focusSection === "header"
+  readonly property int heroRingPad: Style.space(6)
 
   readonly property color hoverFill: bar
     ? Style.hoverFillFor(bar.foreground, Color.accent)
@@ -167,6 +207,10 @@ Panel {
   function moveCursor(delta) {
     var sections = visibleSections
     if (sections.length === 0) return
+    if (focusSection === "header") {
+      if (delta > 0) { focusSection = sections[0]; selectedIndex = sectionHasSlider(sections[0]) ? -1 : 0 }
+      return
+    }
     var sIdx = sections.indexOf(focusSection)
     if (sIdx < 0) { focusSection = sections[0]; selectedIndex = sectionHasSlider(focusSection) ? -1 : 0; return }
 
@@ -189,8 +233,16 @@ Panel {
         focusSection = sections[sIdx - 1]
         var prevMax = sectionCount(focusSection) - 1
         selectedIndex = prevMax >= 0 ? prevMax : (sectionHasSlider(focusSection) ? -1 : 0)
+      } else {
+        focusSection = "header"
       }
     }
+  }
+
+  function setHeaderCursor() {
+    cursorActive = true
+    focusSection = "header"
+    selectedIndex = -1
   }
 
   function moveSection(delta) {
@@ -227,6 +279,7 @@ Panel {
 
   // Enter/Space: activate whatever the cursor is on.
   function activateCursor() {
+    if (focusSection === "header") { toggleOutputMute(); return }
     if (focusSection === "output") {
       if (selectedIndex === -1) { toggleOutputMute(); return }
       var sink = displayAudioSinks[selectedIndex]
@@ -359,7 +412,7 @@ Panel {
 
   function setOutputVolume(v) {
     if (!sink || !sink.audio) return
-    sink.audio.volume = Math.max(0, Math.min(1, v))
+    volumeSink.audio.volume = Math.max(0, Math.min(1, v))
   }
 
   function setInputVolume(v) {
@@ -368,7 +421,7 @@ Panel {
   }
 
   function toggleOutputMute() {
-    if (sink && sink.audio) sink.audio.muted = !sink.audio.muted
+    if (volumeSink && volumeSink.audio) volumeSink.audio.muted = !volumeSink.audio.muted
   }
 
   function toggleInputMute() {
@@ -507,12 +560,32 @@ Panel {
     }
   }
 
+  Process {
+    id: volumeSinkProc
+    command: ["omarchy-audio-output-sink"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: root.volumeSinkName = String(text).trim()
+    }
+  }
+
   Timer {
     interval: 5000
     running: root.opened
     repeat: true
     triggeredOnStart: true
     onTriggered: if (!sinkAvailabilityProc.running) sinkAvailabilityProc.running = true
+  }
+
+  // Runs whether or not the panel is open: the bar shows and scrolls the output
+  // volume too, so an unresolved sink there would read and change the virtual
+  // tuning sink instead of the speakers.
+  Timer {
+    interval: 15000
+    running: true
+    repeat: true
+    triggeredOnStart: true
+    onTriggered: root.resolveVolumeSink()
   }
 
   Timer {
@@ -522,14 +595,11 @@ Panel {
     onTriggered: root.refreshDisplayAudioModels()
   }
 
-  WidgetButton {
+  BarIconButton {
     id: button
     anchors.fill: parent
     bar: root.bar
     text: root.outputIcon()
-    fontSize: Style.font.body
-    fixedWidth: root.bar && root.bar.vertical ? -1 : Style.space(27)
-    fixedHeight: root.bar && root.bar.vertical ? Style.space(26) : -1
     onPressed: function(b) {
       if (b === Qt.RightButton) root.toggleOutputMute()
       else root.toggle()
@@ -600,7 +670,18 @@ Panel {
           Item {
             id: heroItem
             width: parent.width
-            implicitHeight: Math.max(heroIcon.implicitHeight, heroLabels.implicitHeight)
+            implicitHeight: Math.max(heroIcon.implicitHeight, heroLabels.implicitHeight) + root.heroRingPad * 2
+
+            // Keyboard focus ring around the hero output-mute toggle. heroIcon
+            // is inset by heroRingPad so this ring stays inside the clip box.
+            BorderSurface {
+              anchors.fill: heroIcon
+              anchors.margins: -root.heroRingPad
+              color: "transparent"
+              radius: Style.cornerRadius
+              visible: root.headerHasCursor
+              borderSpec: Border.controlSpec("hover-cursor", root.bar.foreground, Color.accent)
+            }
 
             Text {
               id: heroIcon
@@ -610,11 +691,14 @@ Panel {
               font.pixelSize: Style.font.display
               opacity: root.outputMuted ? 0.5 : 1.0
               anchors.left: parent.left
+              anchors.leftMargin: root.heroRingPad
               anchors.verticalCenter: parent.verticalCenter
 
               MouseArea {
                 anchors.fill: parent
+                hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
+                onContainsMouseChanged: if (containsMouse) root.setHeaderCursor()
                 onClicked: root.toggleOutputMute()
               }
             }

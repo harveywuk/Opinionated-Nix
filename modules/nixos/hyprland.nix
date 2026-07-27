@@ -13,7 +13,7 @@ inputs: {
     comment = "Hyprland compositor managed by UWSM";
     exec = "${pkgs.uwsm}/bin/uwsm start -F -- start-hyprland";
     type = "Application";
-    categories = [ ];
+    categories = [];
   };
 in {
   programs.hyprland = {
@@ -37,25 +37,25 @@ in {
   # SDDM picks the session whose name contains "uwsm" (see default/sddm/omarchy/Main.qml).
   environment.systemPackages = [
     (pkgs.runCommand "hyprland-uwsm-override" {} ''
-      mkdir -p $out/share/wayland-sessions
-      cat > $out/share/wayland-sessions/hyprland-uwsm.desktop <<EOF
-[Desktop Entry]
-Name=Hyprland (UWSM)
-Comment=Hyprland compositor managed by UWSM
-Exec=${pkgs.uwsm}/bin/uwsm start -F -- start-hyprland
-Type=Application
-EOF
+            mkdir -p $out/share/wayland-sessions
+            cat > $out/share/wayland-sessions/hyprland-uwsm.desktop <<EOF
+      [Desktop Entry]
+      Name=Hyprland (UWSM)
+      Comment=Hyprland compositor managed by UWSM
+      Exec=${pkgs.uwsm}/bin/uwsm start -F -- start-hyprland
+      Type=Application
+      EOF
     '')
   ];
 
   services.dbus.enable = true;
   xdg.portal = {
     enable = true;
-    extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
+    extraPortals = [pkgs.xdg-desktop-portal-gtk];
     config.common.default = "*";
-    config.hyprland.default = [ "hyprland" "gtk" ];
+    config.hyprland.default = ["hyprland" "gtk"];
   };
 
   # Enable InputCapture portal for screen sharing applications like Deskflow
-  xdg.portal.config.hyprland."org.freedesktop.impl.portal.InputCapture" = [ "hyprland" ];
+  xdg.portal.config.hyprland."org.freedesktop.impl.portal.InputCapture" = ["hyprland"];
 }

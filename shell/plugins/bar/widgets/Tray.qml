@@ -1,7 +1,8 @@
 import Quickshell
 import QtQuick
+import QtQuick.Controls
+import QtQuick.Effects
 import Quickshell.Services.SystemTray
-import Quickshell.Widgets
 import qs.Commons
 import qs.Ui
 import "TrayModel.js" as TrayModel
@@ -17,15 +18,15 @@ BarWidget {
   property var activeTrayAnchor: null
   readonly property color foreground: bar ? bar.foreground : Color.foreground
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
-  readonly property var pinnedIds: Array.isArray(settings.pinned) ? settings.pinned : []
-  readonly property var hiddenIds: Array.isArray(settings.hidden) ? settings.hidden : []
+  readonly property var pinnedIds: settings.pinned instanceof Array ? settings.pinned : []
+  readonly property var hiddenIds: settings.hidden instanceof Array ? settings.hidden : []
   readonly property var pinnedItems: bucket("pinned")
   readonly property var drawerItems: bucket("drawer")
   readonly property var allItems: bucket("all")
   readonly property int drawerCount: drawerItems.length
-  readonly property int trayItemExtent: Style.space(16)
-  readonly property int trayItemGap: Style.space(9)
-  readonly property int trayJoinGap: Style.space(4)
+  readonly property int trayItemExtent: Style.bar.iconSlot
+  readonly property int trayItemGap: 0
+  readonly property int trayJoinGap: 0
   readonly property int drawerExtent: drawerCount > 0 ? drawerCount * trayItemExtent + (drawerCount - 1) * trayItemGap : 0
   // Match Waybar's group/tray-expander drawer transition-duration.
   readonly property int animationDuration: 600
@@ -50,14 +51,20 @@ BarWidget {
   }
 
   function trayIconSource(icon) {
-    var value = String(icon || "")
-    var marker = "?path="
-    var markerIndex = value.indexOf(marker)
-    if (markerIndex === -1) return value
+    // Quickshell already resolves the tray icon into a ready-to-use image://
+    // URL, including a "?path=" fallback search dir for apps that ship their
+    // tray icon outside a standard theme (e.g. Steam's flat public/ dir). Hand
+    // it straight to IconImage; guessing a theme sub-directory here only broke
+    // apps whose layout didn't match the guess.
+    return String(icon || "")
+  }
 
-    var name = value.substring(0, markerIndex).split("/").pop()
-    var iconPath = value.substring(markerIndex + marker.length).split("&")[0]
-    return Util.fileUrl(iconPath + "/hicolor/16x16/status/" + name + ".png")
+  // Symbolic icons ship a fixed fill (often near-white) that the host is meant
+  // to recolor to its foreground; detect them by the freedesktop "-symbolic"
+  // name suffix so they can be tinted instead of rendered as-is.
+  function iconIsSymbolic(icon) {
+    var name = String(icon || "").split("?")[0]
+    return name.slice(-9) === "-symbolic"
   }
 
   function trayTooltip(item) {
@@ -175,15 +182,13 @@ BarWidget {
           onHoveredChanged: root.expanded = hovered
         }
 
-        WidgetButton {
+        BarIconButton {
           id: expandIcon
           bar: root.bar
           width: implicitWidth
           height: implicitHeight
           x: root.drawerExtent - root.revealExtent
           text: "\uf053"
-          horizontalMargin: 9
-          verticalPadding: 6
           onPressed: function(button) {
             if (button === Qt.RightButton) root.managePopupOpen = !root.managePopupOpen
           }
@@ -259,7 +264,7 @@ BarWidget {
           onHoveredChanged: root.expanded = hovered
         }
 
-        WidgetButton {
+        BarIconButton {
           id: expandIcon
           bar: root.bar
           width: implicitWidth
@@ -267,8 +272,6 @@ BarWidget {
           y: root.drawerExtent - root.revealExtent
           text: "\uf053"
           textRotation: 90
-          horizontalMargin: 9
-          verticalPadding: 6
           onPressed: function(button) {
             if (button === Qt.RightButton) root.managePopupOpen = !root.managePopupOpen
           }
@@ -373,14 +376,13 @@ BarWidget {
           readonly property bool isPinned: root.pinnedIds.indexOf(itemId) !== -1
           readonly property bool isHidden: root.hiddenIds.indexOf(itemId) !== -1
 
-          IconImage {
+          TrayIcon {
             id: rowIcon
             anchors.verticalCenter: parent.verticalCenter
             anchors.left: parent.left
-            implicitSize: 16
             width: 16
             height: 16
-            source: root.trayIconSource(rowRoot.modelData.icon)
+            icon: rowRoot.modelData.icon
           }
 
           Text {
@@ -445,117 +447,165 @@ BarWidget {
     contentWidth: trayMenuPopup.fittedContentWidth(Style.space(232))
     contentHeight: trayMenuPopup.fittedContentHeight(trayMenuColumn.implicitHeight, Style.space(420))
 
-    Column {
-      id: trayMenuColumn
+    Flickable {
+      id: trayMenuFlick
       anchors.fill: parent
-      spacing: 0
+      contentWidth: width
+      contentHeight: trayMenuColumn.implicitHeight
+      clip: true
+      boundsBehavior: Flickable.StopAtBounds
+      flickableDirection: Flickable.VerticalFlick
+      interactive: contentHeight > height
 
-      Repeater {
-        model: trayMenuOpener.children
+      ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
-        delegate: Item {
-          id: menuRow
-          required property var modelData
-          required property int index
+      Column {
+        id: trayMenuColumn
+        width: trayMenuFlick.width
+        spacing: 0
 
-          readonly property string rowText: String(modelData.text || "")
-          readonly property string activeTitle: root.activeTrayItem ? String(root.activeTrayItem.title || root.activeTrayItem.id || "") : ""
-          readonly property bool rootTitleEntry: index === 0 && modelData.hasChildren && rowText.toLowerCase() === activeTitle.toLowerCase()
-          readonly property bool leadingSeparator: modelData.isSeparator && index <= 1
-          readonly property bool hiddenRow: rootTitleEntry || leadingSeparator
+        Repeater {
+          model: trayMenuOpener.children
 
-          visible: !hiddenRow
-          width: trayMenuColumn.width
-          implicitHeight: hiddenRow ? 0 : (modelData.isSeparator ? Style.space(11) : Style.space(30))
-          opacity: modelData.enabled ? 1.0 : 0.45
+          delegate: Item {
+            id: menuRow
+            required property var modelData
+            required property int index
 
-          Rectangle {
-            visible: menuRow.modelData.isSeparator
-            anchors.left: parent.left
-            anchors.leftMargin: Style.space(10)
-            anchors.right: parent.right
-            anchors.rightMargin: Style.space(10)
-            anchors.verticalCenter: parent.verticalCenter
-            height: 1
-            color: Color.popups.border
-            opacity: 0.45
-          }
+            readonly property string rowText: String(modelData.text || "")
+            readonly property string activeTitle: root.activeTrayItem ? String(root.activeTrayItem.title || root.activeTrayItem.id || "") : ""
+            readonly property bool rootTitleEntry: index === 0 && modelData.hasChildren && rowText.toLowerCase() === activeTitle.toLowerCase()
+            readonly property bool leadingSeparator: modelData.isSeparator && index <= 1
+            readonly property bool hiddenRow: rootTitleEntry || leadingSeparator
 
-          Rectangle {
-            visible: !menuRow.modelData.isSeparator
-            anchors.fill: parent
-            radius: Math.max(2, Style.cornerRadius)
-            color: rowMouse.containsMouse && menuRow.modelData.enabled ? Style.hoverFillFor(root.foreground, root.foreground) : "transparent"
-          }
+            visible: !hiddenRow
+            width: trayMenuColumn.width
+            implicitHeight: hiddenRow ? 0 : (modelData.isSeparator ? Style.space(11) : Style.space(30))
+            opacity: modelData.enabled ? 1.0 : 0.45
 
-          Text {
-            visible: !menuRow.modelData.isSeparator && menuRow.modelData.buttonType !== QsMenuButtonType.None
-            anchors.verticalCenter: parent.verticalCenter
-            anchors.left: parent.left
-            width: Style.space(22)
-            horizontalAlignment: Text.AlignHCenter
-            text: menuRow.modelData.checkState === Qt.Checked ? "\uf00c" : ""
-            color: root.foreground
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.bodySmall
-          }
+            Rectangle {
+              visible: menuRow.modelData.isSeparator
+              anchors.left: parent.left
+              anchors.leftMargin: Style.space(10)
+              anchors.right: parent.right
+              anchors.rightMargin: Style.space(10)
+              anchors.verticalCenter: parent.verticalCenter
+              height: 1
+              color: Color.popups.border
+              opacity: 0.45
+            }
 
-          IconImage {
-            id: menuIcon
-            visible: !menuRow.modelData.isSeparator && String(menuRow.modelData.icon || "") !== ""
-            anchors.verticalCenter: parent.verticalCenter
-            anchors.left: parent.left
-            anchors.leftMargin: Style.space(24)
-            implicitSize: Style.space(16)
-            width: Style.space(16)
-            height: Style.space(16)
-            source: menuRow.modelData.icon
-          }
+            Rectangle {
+              visible: !menuRow.modelData.isSeparator
+              anchors.fill: parent
+              radius: Math.max(2, Style.cornerRadius)
+              color: rowMouse.containsMouse && menuRow.modelData.enabled ? Style.hoverFillFor(root.foreground, root.foreground) : "transparent"
+            }
 
-          Text {
-            visible: !menuRow.modelData.isSeparator
-            anchors.verticalCenter: parent.verticalCenter
-            anchors.left: parent.left
-            anchors.leftMargin: menuIcon.visible ? Style.space(46) : Style.space(28)
-            anchors.right: submenuGlyph.left
-            anchors.rightMargin: Style.space(8)
-            text: menuRow.rowText
-            color: root.foreground
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.bodySmall
-            elide: Text.ElideRight
-          }
+            Text {
+              visible: !menuRow.modelData.isSeparator && menuRow.modelData.buttonType !== QsMenuButtonType.None
+              anchors.verticalCenter: parent.verticalCenter
+              anchors.left: parent.left
+              width: Style.space(22)
+              horizontalAlignment: Text.AlignHCenter
+              text: menuRow.modelData.checkState === Qt.Checked ? "\uf00c" : ""
+              color: root.foreground
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.bodySmall
+            }
 
-          Text {
-            id: submenuGlyph
-            visible: !menuRow.modelData.isSeparator && menuRow.modelData.hasChildren
-            anchors.verticalCenter: parent.verticalCenter
-            anchors.right: parent.right
-            anchors.rightMargin: Style.space(10)
-            text: "\u203a"
-            color: root.foreground
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.bodySmall
-          }
+            Image {
+              id: menuIcon
+              visible: !menuRow.modelData.isSeparator && String(menuRow.modelData.icon || "") !== ""
+              anchors.verticalCenter: parent.verticalCenter
+              anchors.left: parent.left
+              anchors.leftMargin: Style.space(24)
+              width: Style.space(16)
+              height: Style.space(16)
+              fillMode: Image.PreserveAspectFit
+              // Decode at physical pixels: IconImage uses the logical size,
+              // which leaves PNG icons upscaled and blurry on HiDPI displays.
+              sourceSize.width: width * Screen.devicePixelRatio
+              sourceSize.height: height * Screen.devicePixelRatio
+              source: menuRow.modelData.icon
+            }
 
-          MouseArea {
-            id: rowMouse
-            anchors.fill: parent
-            hoverEnabled: true
-            enabled: !menuRow.modelData.isSeparator && menuRow.modelData.enabled
-            cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-            onClicked: {
-              if (menuRow.modelData.hasChildren) {
-                var point = menuRow.QsWindow.contentItem.mapFromItem(menuRow, menuRow.width, menuRow.height / 2)
-                menuRow.modelData.display(menuRow.QsWindow.window, point.x, point.y)
-              } else {
-                menuRow.modelData.triggered()
-                root.close()
+            Text {
+              visible: !menuRow.modelData.isSeparator
+              anchors.verticalCenter: parent.verticalCenter
+              anchors.left: parent.left
+              anchors.leftMargin: menuIcon.visible ? Style.space(46) : Style.space(28)
+              anchors.right: submenuGlyph.left
+              anchors.rightMargin: Style.space(8)
+              text: menuRow.rowText
+              color: root.foreground
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.bodySmall
+              elide: Text.ElideRight
+            }
+
+            Text {
+              id: submenuGlyph
+              visible: !menuRow.modelData.isSeparator && menuRow.modelData.hasChildren
+              anchors.verticalCenter: parent.verticalCenter
+              anchors.right: parent.right
+              anchors.rightMargin: Style.space(10)
+              text: "\u203a"
+              color: root.foreground
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.bodySmall
+            }
+
+            MouseArea {
+              id: rowMouse
+              anchors.fill: parent
+              hoverEnabled: true
+              enabled: !menuRow.modelData.isSeparator && menuRow.modelData.enabled
+              cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+              onClicked: {
+                if (menuRow.modelData.hasChildren) {
+                  var point = menuRow.QsWindow.contentItem.mapFromItem(menuRow, menuRow.width, menuRow.height / 2)
+                  menuRow.modelData.display(menuRow.QsWindow.window, point.x, point.y)
+                } else {
+                  menuRow.modelData.triggered()
+                  root.close()
+                }
               }
             }
           }
         }
       }
+    }
+  }
+
+  // Renders a tray icon, recoloring symbolic icons to the bar foreground so
+  // they stay visible on any theme (a raw symbolic icon keeps its baked-in
+  // fill and disappears against a matching background).
+  component TrayIcon: Item {
+    id: trayIconRoot
+    required property var icon
+    readonly property bool symbolic: root.iconIsSymbolic(icon)
+
+    Image {
+      id: trayIconImage
+      anchors.fill: parent
+      fillMode: Image.PreserveAspectFit
+      // Decode at physical pixels: IconImage uses the logical size,
+      // which leaves PNG icons upscaled and blurry on HiDPI displays.
+      sourceSize.width: Math.round(Math.min(width, height) * Screen.devicePixelRatio)
+      sourceSize.height: Math.round(Math.min(width, height) * Screen.devicePixelRatio)
+      source: root.trayIconSource(trayIconRoot.icon)
+      // Kept as a hidden layer so the effect can sample it as a texture.
+      visible: !trayIconRoot.symbolic
+      layer.enabled: trayIconRoot.symbolic
+    }
+
+    MultiEffect {
+      anchors.fill: trayIconImage
+      source: trayIconImage
+      visible: trayIconRoot.symbolic
+      colorization: 1.0
+      colorizationColor: root.foreground
     }
   }
 
@@ -572,12 +622,11 @@ BarWidget {
       root.openTrayMenu(trayItemRoot.modelData, trayItemRoot, mouse)
     }
 
-    IconImage {
+    TrayIcon {
       anchors.centerIn: parent
-      implicitSize: Style.space(12)
       width: Style.space(12)
       height: Style.space(12)
-      source: root.trayIconSource(trayItemRoot.modelData.icon)
+      icon: trayItemRoot.modelData.icon
     }
 
     MouseArea {

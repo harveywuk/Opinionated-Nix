@@ -2,6 +2,7 @@
 
 # omarchy:summary=Restore Omarchy to the package install after reboot
 # omarchy:group=dev
+# omarchy:args=[--no-reboot]
 
 set -euo pipefail
 
@@ -10,21 +11,44 @@ if (( EUID == 0 )); then
   exit 1
 fi
 
-if [[ ${1:-} == "-h" || ${1:-} == "--help" ]]; then
-  cat <<USAGE
-Usage: omarchy dev unlink
+prompt_reboot=1
+
+if (( $# > 1 )); then
+  echo "Usage: omarchy dev unlink [--no-reboot]" >&2
+  exit 1
+fi
+
+case "${1:-}" in
+  "")
+    ;;
+  --no-reboot)
+    prompt_reboot=0
+    ;;
+  -h|--help)
+    cat <<USAGE
+Usage: omarchy dev unlink [--no-reboot]
 
 Writes /etc/omarchy.conf so OMARCHY_PATH resolves to /usr/share/omarchy
 after reboot. This intentionally does not rewrite the running Hyprland,
 systemd, shell, or app-launcher environment; reboot to make every layer agree.
+
+Use --no-reboot when another command will handle the reboot prompt.
 USAGE
-  exit 0
-fi
+    exit 0
+    ;;
+  *)
+    echo "Usage: omarchy dev unlink [--no-reboot]" >&2
+    exit 1
+    ;;
+esac
 
 default_target="/usr/share/omarchy"
 
 printf 'export OMARCHY_PATH="%s"\n' "$default_target" | sudo tee /etc/omarchy.conf >/dev/null
 
-echo "Set /etc/omarchy.conf -> OMARCHY_PATH=$default_target"
+echo "Pointed Omarchy at $default_target"
 echo
-echo "Reboot to restore the package install in Hyprland, app launchers, and new shells."
+
+if (( prompt_reboot )) && gum confirm "Reboot now to activate?"; then
+  omarchy-system-reboot
+fi

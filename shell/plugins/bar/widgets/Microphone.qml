@@ -34,7 +34,7 @@ BarWidget {
 
   PwObjectTracker { objects: root.source ? [root.source] : [] }
 
-  WidgetButton {
+  BarIconButton {
     id: button
     anchors.fill: parent
     bar: root.bar
@@ -42,7 +42,7 @@ BarWidget {
     active: root.inUse
     tooltipText: root.muted ? "Microphone muted" : (root.inUse ? "Microphone in use" : "Microphone live")
     onPressed: function(b) {
-      if (b === Qt.MiddleButton) root.bar.run("omarchy-shell omarchy.audio toggle")
+      if (b === Qt.MiddleButton) root.bar.run("omarchy-shell shell toggle omarchy.audio")
       else root.toggleMute()
     }
     onWheelMoved: function(delta) {

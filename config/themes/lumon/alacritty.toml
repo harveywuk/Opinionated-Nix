@@ -1,15 +1,6 @@
-[window]
-padding.x = 12
-padding.y = 12
-
-[font]
-size = 12.0
-
-[colors]
 [colors.primary]
 background = "#16242d"
 foreground = "#d6e2ee"
-dim_foreground = "#304860"
 
 [colors.cursor]
 text = "#16242d"
@@ -19,12 +10,24 @@ cursor = "#f2fcff"
 text = "#16242d"
 cursor = "#f2fcff"
 
+[colors.search.matches]
+foreground = "#16242d"
+background = "#6fa4c9"
+
+[colors.search.focused_match]
+foreground = "#16242d"
+background = "#4d86b0"
+
+[colors.footer_bar]
+foreground = "#16242d"
+background = "#d6e2ee"
+
 [colors.selection]
-text = "#1b2d40"
-background = "#4d9ed3"
+text = "#f2fcff"
+background = "#243d56"
 
 [colors.normal]
-black = "#1b2d40"
+black = "#16242d"
 red = "#4d86b0"
 green = "#5e95bc"
 yellow = "#6fa4c9"
@@ -41,4 +44,4 @@ yellow = "#9dcae5"
 blue = "#f2fcff"
 magenta = "#b1d8ee"
 cyan = "#d1eef8"
-white = "#ffffff"
+white = "#f2fcff"

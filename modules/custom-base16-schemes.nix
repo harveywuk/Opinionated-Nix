@@ -198,4 +198,27 @@
     base0E = "8bc9eb"; # Keywords (light sky)
     base0F = "4d86b0"; # Deprecated (blue)
   };
+
+  # Derived from upstream themes/lupine/colors.toml (a light theme).
+  lupine = {
+    slug = "lupine";
+    scheme = "Lupine";
+    author = "Omarchy (port by omarchy-nix)";
+    base00 = "fafafa"; # Default Background
+    base01 = "ececec"; # Lighter Background (dark_background)
+    base02 = "d0d0d0"; # Selection Background
+    base03 = "9e9e9e"; # Comments, Invisibles (muted)
+    base04 = "757575"; # Dark Foreground
+    base05 = "212121"; # Default Foreground
+    base06 = "424242"; # Light Foreground
+    base07 = "000000"; # Light Background (bright_foreground)
+    base08 = "c900c4"; # Variables (red)
+    base09 = "026fde"; # Integers (orange)
+    base0A = "026fde"; # Classes (yellow)
+    base0B = "4a2fd0"; # Strings (green)
+    base0C = "0c67de"; # Regex (cyan)
+    base0D = "3264eb"; # Functions (blue / accent)
+    base0E = "8a4ad7"; # Keywords (magenta)
+    base0F = "013a6f"; # Deprecated (brown)
+  };
 }

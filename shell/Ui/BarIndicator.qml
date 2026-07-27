@@ -1,7 +1,7 @@
 import QtQuick
 import qs.Commons
 
-WidgetButton {
+BarIconButton {
   id: root
 
   property string moduleName: ""
@@ -46,4 +46,6 @@ WidgetButton {
   fontSize: Style.font.caption
   horizontalMargin: 5
   verticalPadding: 5
+  fixedWidth: vertical ? -1 : Style.bar.statusSlot
+  fixedHeight: vertical ? Style.bar.statusSlot : -1
 }

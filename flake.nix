@@ -2,8 +2,10 @@
   description = "Omarchy - Base configuration flake";
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    # Use v0.53.0+ for start-hyprland script support
-    hyprland.url = "github:hyprwm/Hyprland/v0.55.3";
+    # 0.56 fixed alpha premultiplication in the color-management shader
+    # (hyprwm/Hyprland#14403); quattro's opacity values are tuned for it, so the
+    # vendored default/hypr looks wrong on 0.55.
+    hyprland.url = "github:hyprwm/Hyprland/v0.56.0";
     nix-colors.url = "github:misterio77/nix-colors";
     home-manager = {
       url = "github:nix-community/home-manager";

@@ -12,7 +12,6 @@ Panel {
   ipcTarget: "omarchy.tailscale"
   manageIpc: false
 
-  readonly property real openIndicatorInlineOffset: bar && bar.vertical ? 0 : Style.spaceReal(1.5)
   property string focusSection: "header"
   property int headerIndex: 0
   property int accountIndex: 0
@@ -43,14 +42,16 @@ Panel {
   readonly property color dim: Qt.darker(foreground, 1.55)
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
   readonly property bool showConnections: tailscale.accounts.length > 1 || tailscale.accountsAccessDenied
-  readonly property bool showPeers: tailscale.running && tailscale.peers.length > 0
-  readonly property var recentMullvadRegions: Array.isArray(settings.recentMullvadRegions) ? settings.recentMullvadRegions : (Array.isArray(settings.recentMullvadCountries) ? settings.recentMullvadCountries : [])
+  readonly property bool showPeers: tailscale.active && tailscale.peers.length > 0
+  readonly property var recentMullvadRegions: settings.recentMullvadRegions instanceof Array ? settings.recentMullvadRegions : (settings.recentMullvadCountries instanceof Array ? settings.recentMullvadCountries : [])
   readonly property var recentMullvadExitNodes: recentMullvadNodes()
   readonly property var exitNodes: displayExitNodes()
-  readonly property bool showExitNodes: tailscale.running && (exitNodes.length > 0 || tailscale.mullvadRegions.length > 0)
+  readonly property bool showExitNodes: tailscale.active && (exitNodes.length > 0 || tailscale.mullvadRegions.length > 0)
   readonly property var filteredMullvadRegions: filteredMullvadRegionNodes()
-  readonly property color iconColor: tailscale.running ? foreground : dim
-  readonly property color barIconColor: tailscale.running ? barForeground : Qt.darker(barForeground, 1.55)
+  readonly property bool headerHasCursor: cursorActive && focusSection === "header"
+  readonly property int heroRingPad: Style.space(6)
+  readonly property color iconColor: tailscale.active ? foreground : dim
+  readonly property color barIconColor: tailscale.active ? barForeground : Qt.darker(barForeground, 1.55)
   readonly property color hoverFill: bar ? Style.hoverFillFor(bar.foreground, Color.accent) : "transparent"
   readonly property color selectedFill: bar ? Style.selectedFillFor(bar.foreground, Color.accent) : "transparent"
 
@@ -294,6 +295,13 @@ Panel {
     scrollCursorIntoView()
   }
 
+  // The file picker takes over from here, so get the panel out of the way.
+  function sendPeerFile(peer) {
+    if (!tailscale.canSendFiles(peer)) return
+    tailscale.sendFile(peer)
+    close()
+  }
+
   function openSelectedPeerCopyMenu() {
     if (!peerColumn || peerIndex < 0 || peerIndex >= peerColumn.children.length) return
     var item = peerColumn.children[peerIndex]
@@ -316,6 +324,12 @@ Panel {
   function setAuthCursor() {
     cursorActive = true
     focusSection = "auth"
+  }
+
+  function setHeaderCursor() {
+    cursorActive = true
+    focusSection = "header"
+    headerIndex = 0
   }
 
   implicitWidth: button.implicitWidth
@@ -356,56 +370,30 @@ Panel {
     function toggle(): void { root.toggle() }
     function refresh(): string { tailscale.refresh(); return "ok" }
     function up(): string { tailscale.loginOrUp(); return "ok" }
-    function down(): string { tailscale.runAction(["tailscale", "down"], "Turning Tailscale off…"); return "ok" }
+    function down(): string { tailscale.down(); return "ok" }
     function status(): string { return tailscale.statusText }
   }
 
-  Item {
+  BarIconButton {
     id: button
     anchors.fill: parent
-    implicitWidth: root.bar && root.bar.vertical ? root.bar.barSize : Style.space(27)
-    implicitHeight: root.bar && root.bar.vertical ? Style.space(26) : (root.bar ? root.bar.barSize : Style.space(26))
-
-    property var registeredBar: null
-
-    function triggerPress(buttonCode) {
+    bar: root.bar
+    iconComponent: Component {
+      Item {
+        TailscaleIcon {
+          anchors.centerIn: parent
+          iconSize: Style.space(11)
+          color: root.barIconColor
+          badgeColor: root.urgent
+          crossed: !tailscale.active && !tailscale.needsLogin
+          warning: tailscale.needsLogin
+        }
+      }
+    }
+    onPressed: function(buttonCode) {
       if (buttonCode === Qt.RightButton) tailscale.toggleTailscale()
       else if (buttonCode === Qt.MiddleButton) tailscale.refresh()
       else root.toggle()
-    }
-
-    function syncClickRegistration() {
-      if (registeredBar && registeredBar.unregisterClickTarget) registeredBar.unregisterClickTarget(button)
-      registeredBar = root.bar
-      if (registeredBar && registeredBar.registerClickTarget) registeredBar.registerClickTarget(button)
-    }
-
-    Component.onCompleted: syncClickRegistration()
-    Component.onDestruction: if (registeredBar && registeredBar.unregisterClickTarget) registeredBar.unregisterClickTarget(button)
-
-    Connections {
-      target: root
-      function onBarChanged() { button.syncClickRegistration() }
-    }
-
-    TailscaleIcon {
-      anchors.centerIn: parent
-      anchors.horizontalCenterOffset: root.openIndicatorInlineOffset
-      anchors.verticalCenterOffset: -Style.space(1)
-      iconSize: Style.space(12) * 0.85
-      color: root.barIconColor
-      badgeColor: root.urgent
-      crossed: !tailscale.running && !tailscale.needsLogin
-      warning: tailscale.needsLogin
-    }
-
-    MouseArea {
-      id: mouseArea
-      anchors.fill: parent
-      acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
-      hoverEnabled: true
-      cursorShape: Qt.PointingHandCursor
-      onClicked: function(mouse) { button.triggerPress(mouse.button) }
     }
   }
 
@@ -435,6 +423,7 @@ Panel {
         else if (t === "c" || t === "C") tailscale.copyPeerIp(root.selectedPeer())
         else if (t === "n" || t === "N") tailscale.copyPeerName(root.selectedPeer())
         else if (t === "d" || t === "D") tailscale.copyPeerDnsName(root.selectedPeer())
+        else if (t === "s" || t === "S") root.sendPeerFile(root.selectedPeer())
       }
 
       Flickable {
@@ -456,27 +445,46 @@ Panel {
           Item {
             id: header
             width: parent.width
-            implicitHeight: hero.implicitHeight
+            implicitHeight: hero.implicitHeight + root.heroRingPad
+            // Exposed for the hero's iconComponent, whose `root` resolves to
+            // PanelHero (not this Panel) — reach panel state via `header`.
+            readonly property bool ringVisible: root.headerHasCursor
+            readonly property int ringPad: root.heroRingPad
+            function focusHero() { root.setHeaderCursor() }
 
             PanelHero {
               id: hero
-              width: parent.width
+              x: root.heroRingPad
+              y: root.heroRingPad
+              width: parent.width - root.heroRingPad
               title: tailscale.installed ? (tailscale.selfName || "Tailscale") : "Tailscale"
-              meta: root.heroPhraseText
+              meta: tailscale.active ? root.heroPhraseText : "Tailscale is disconnected"
               foreground: root.foreground
               fontFamily: root.fontFamily
-              iconOpacity: tailscale.running ? 1.0 : 0.5
+              iconOpacity: tailscale.active ? 1.0 : 0.5
               iconComponent: Component {
                 Item {
                   implicitWidth: icon.implicitWidth
                   implicitHeight: icon.implicitHeight
+
+                  // Keyboard focus ring around the hero toggle. The hero is
+                  // inset by heroRingPad so this ring stays inside the
+                  // Flickable's clip box instead of being cut off.
+                  BorderSurface {
+                    anchors.fill: icon
+                    anchors.margins: -header.ringPad
+                    color: "transparent"
+                    radius: Style.cornerRadius
+                    visible: header.ringVisible
+                    borderSpec: Border.controlSpec("hover-cursor", hero.foreground, Color.accent)
+                  }
 
                   TailscaleIcon {
                     id: icon
                     iconSize: Style.font.display
                     color: root.iconColor
                     badgeColor: root.urgent
-                    crossed: !tailscale.running && !tailscale.needsLogin
+                    crossed: !tailscale.active && !tailscale.needsLogin
                     warning: tailscale.needsLogin
                     anchors.centerIn: parent
                   }
@@ -487,11 +495,14 @@ Panel {
                     hoverEnabled: true
                     enabled: tailscale.installed && !tailscale.busy
                     cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                    onContainsMouseChanged: if (containsMouse) {
-                      root.focusSection = "header"
-                      root.headerIndex = 0
-                    }
+                    onContainsMouseChanged: if (containsMouse) header.focusHero()
                     onClicked: tailscale.toggleTailscale()
+                  }
+
+                  PanelToolTip {
+                    visible: heroIconMouse.containsMouse
+                    text: tailscale.active ? "Turn Tailscale off" : (tailscale.needsLogin ? "Authorize this device" : "Turn Tailscale on")
+                    fontFamily: root.fontFamily
                   }
                 }
               }
@@ -666,12 +677,12 @@ Panel {
           }
 
           PanelSeparator {
-            visible: tailscale.installed && tailscale.running
+            visible: tailscale.installed && tailscale.active
             foreground: root.foreground
           }
 
           Column {
-            visible: tailscale.installed && tailscale.running
+            visible: tailscale.installed && tailscale.active
             width: parent.width
             spacing: Style.space(10)
 
@@ -682,7 +693,7 @@ Panel {
             }
 
             Text {
-              visible: tailscale.installed && tailscale.running && tailscale.peers.length === 0
+              visible: tailscale.installed && tailscale.active && tailscale.peers.length === 0
               width: parent.width
               text: "No machines found on this tailnet."
               color: root.dim
@@ -717,7 +728,7 @@ Panel {
   Timer {
     id: phraseTimer
     interval: 2800
-    running: root.opened
+    running: root.opened && tailscale.active
     repeat: true
     onTriggered: phraseSwap.restart()
   }
@@ -968,6 +979,17 @@ Panel {
           font.pixelSize: Style.font.caption
           elide: Text.ElideRight
         }
+      }
+
+      PanelActionButton {
+        id: sendButton
+        visible: tailscale.canSendFiles(peerRow.peer)
+        iconText: "󰒊"
+        tooltipText: "Send files"
+        foreground: root.foreground
+        fontFamily: root.fontFamily
+        Layout.alignment: Qt.AlignVCenter
+        onClicked: root.sendPeerFile(peerRow.peer)
       }
 
       PanelActionButton {

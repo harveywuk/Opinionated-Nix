@@ -10,13 +10,13 @@ the shell for its whole session.
 - `widgets/` holds simple first-party bar widgets with sibling manifests.
 - Feature plugins such as `../panels/audio/`, `../panels/network/`, `../panels/power/`, and `../model-usage/` provide richer popup bar plugins.
 - The bar receives its config from the host shell as a `barConfig` property; the host loads it from `~/.config/omarchy/shell.json` (or `config/omarchy/shell.json` when the user has no file).
-- `omarchy-style-bar-position` updates only the user shell.json file.
+- `omarchy bar position` updates only the user shell.json file.
 
 ## Customizing
 
-The bar config lives under the `bar:` key of [`~/.config/omarchy/shell.json`](../../README.md#shelljson-shape). Out of the box the shell uses [`config/omarchy/shell.json`](../../../config/omarchy/shell.json). Once you customize anything via the inline bar config panel, `omarchy bar ...`, or by editing shell.json directly, your file is canonical — there is no deep-merge.
+The bar config lives under the `bar:` key of [`~/.config/omarchy/shell.json`](../../README.md#shelljson-shape). Out of the box the shell uses [`config/omarchy/shell.json`](../../../config/omarchy/shell.json). Once you customize anything via the bar gestures, `omarchy bar ...`, or by editing shell.json directly, your file is canonical — there is no deep-merge.
 
-Open quick position and transparency controls with `omarchy bar settings` (or run `omarchy-launch-bar-settings`). You can also hover the centered clock module to reveal the inline bar config button. For scriptable widget changes, use `omarchy bar list`, `omarchy bar add`, `omarchy bar move`, `omarchy bar remove`, and `omarchy bar set`. Double-left-click empty center-bar space to toggle bar transparency.
+The bar is configured directly on the bar itself: drag empty bar space (or click-and-hold) to move the bar to another screen edge, double-left-click empty center-bar space to toggle transparency, and drag widgets to reorder them. The `omarchy bar position` and `omarchy bar transparent` commands do the same from scripts. For scriptable widget changes, use `omarchy bar plugin add`, `omarchy bar plugin move`, `omarchy bar plugin remove`, and `omarchy bar plugin set` (widget ids come from `omarchy plugin list`).
 
 Example `shell.json` (bar subtree only shown):
 
@@ -56,10 +56,9 @@ Example `shell.json` (bar subtree only shown):
 |---|---|---|
 | `omarchy.menu` | Omarchy menu launcher | left = menu · right = terminal |
 | `omarchy.workspaces` | Hyprland workspace switcher | left = focus workspace |
-| `omarchy.clock` | Date/time label | left = alternate format · right = timezone selector |
+| `omarchy.clock` | Date/time label + popup with a month grid, ISO week numbers, and month stepping | left = popup · right = cycle label format · middle = timezone selector |
 | `omarchy.media` | MPRIS now-playing — scrolling track + artist, cover-art popup | left = play/pause · middle = next · scroll = prev/next · right = popup |
 | `omarchy.indicators` | Manual state indicators | left = indicator action |
-| `omarchy.notifications` | Bell with badge + popup with recent notifications, DND toggle | left = popup · right = toggle DND |
 | `omarchy.system-update` | Available update indicator | left = update |
 | `omarchy.tray` | System tray | hover = reveal drawer · right on chevron = manage |
 | `omarchy.weather` | Weather icon + popup with forecast | left = popup · right = full notification |
@@ -167,10 +166,10 @@ Widgets receive `bar` (the shell root), `moduleName` (string), and `settings` (o
 - `bar.requestPopout(owner)` / `bar.releasePopout(owner)` — one-popup-at-a-time coordinator
 
 First-party bar widgets are manifest-backed just like third-party widgets.
-Simple widgets carry sibling manifests such as `widgets/Clock.manifest.json`;
+Simple widgets carry sibling manifests such as `widgets/Workspaces.manifest.json`;
 richer popup plugins live in feature directories such as `../panels/audio/`,
-`../panels/network/`, and `../model-usage/`; and feature plugins such as `omarchy.menu`, `omarchy.media`, and
-`omarchy.notifications` declare their bar-widget entry points in their own
+`../panels/network/`, and `../model-usage/`; and feature plugins such as
+`omarchy.menu` and `omarchy.media` declare their bar-widget entry points in their own
 `manifest.json`. Bar layout ids are namespaced, e.g. `omarchy.audio`,
 `omarchy.network`, and `omarchy.clock`. Older UpperCamelCase ids such as
 `AudioPanel` and `Clock` are migrated forward; new configs should use the
@@ -181,4 +180,4 @@ Third-party widgets ship as separate plugins under
 declaring `kinds: ["bar-widget"]` and a `barWidget` entry point. See
 [../../README.md](../../README.md) for the manifest schema. Enable,
 rescan, and place third-party plugins with `omarchy plugin enable`,
-`omarchy plugin rescan`, and `omarchy bar add`.
+`omarchy plugin rescan`, and `omarchy bar plugin add`.

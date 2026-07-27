@@ -3,15 +3,9 @@
 # omarchy:summary=Restore the default Omarchy Plymouth boot theme and SDDM login screen
 # omarchy:requires-sudo=true
 
-theme_dir="/usr/share/plymouth/themes/omarchy"
-
-sudo find $OMARCHY_PATH/default/plymouth -maxdepth 1 -type f -exec cp -t "$theme_dir/" {} +
-sudo plymouth-set-default-theme omarchy
-
-if false; then  # Nix: Plymouth theme is declarative (packages/plymouth-theme-omarchy.nix); no initramfs regen
-  sudo limine-mkinitcpio
-else
-  sudo mkinitcpio -P
-fi
-
-omarchy-refresh-sddm
+# Nix deviation: upstream calls omarchy-refresh-plymouth + omarchy-refresh-sddm,
+# which stage /usr/share/plymouth and regenerate the initramfs. Both are
+# declarative here (packages/plymouth-theme-omarchy.nix + the SDDM module), so
+# resetting means rebuilding, not mutating the running system.
+echo "Plymouth and SDDM are managed declaratively on omarchy-nix." >&2
+echo "Rebuild to restore the defaults: sudo nixos-rebuild switch" >&2

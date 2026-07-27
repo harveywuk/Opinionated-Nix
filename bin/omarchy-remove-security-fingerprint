@@ -1,39 +1,19 @@
 #!/bin/bash
 
 # omarchy:summary=Remove fingerprint authentication from sudo, polkit, and lock screen
-# omarchy:requires-sudo=true
 
 set -e
 
+# Nix deviation: upstream sed-edits /etc/pam.d/{sudo,polkit-1}, removes
+# /etc/pam.d/omarchy-lock-fingerprint and drops the packages. All of that is
+# declarative here — see the note in omarchy-setup-security-fingerprint. This
+# script only deletes the enrolled prints.
 
-remove_pam_config() {
-  # Remove from sudo
-  if grep -q pam_fprintd.so /etc/pam.d/sudo; then
-    echo "Removing fingerprint authentication from sudo..."
-    sudo sed -i '/pam_fprintd\.so/d' /etc/pam.d/sudo
-  fi
+echo -e "\e[32mRemoving enrolled fingerprints.\n\e[0m"
 
-  # Remove from polkit
-  if [[ -f /etc/pam.d/polkit-1 ]] && grep -Fq 'pam_fprintd.so' /etc/pam.d/polkit-1; then
-    echo "Removing fingerprint authentication from polkit..."
-    sudo sed -i '/pam_fprintd\.so/d' /etc/pam.d/polkit-1
-  fi
-}
+if omarchy-cmd-present fprintd-delete; then
+  sudo fprintd-delete "$USER"
+fi
 
-remove_lock_fingerprint_pam() {
-  if [[ -f /etc/pam.d/omarchy-lock-fingerprint ]]; then
-    echo "Removing lock screen fingerprint authentication..."
-    sudo rm -f /etc/pam.d/omarchy-lock-fingerprint
-  fi
-}
-
-
-echo -e "\e[32mRemoving fingerprint scanner from authentication.\n\e[0m"
-
-remove_pam_config
-remove_lock_fingerprint_pam
-
-echo "Removing fingerprint packages..."
-omarchy-pkg-drop fprintd libfprint-git
-
-echo -e "\e[32mFingerprint authentication has been completely removed.\e[0m"
+echo "To disable fingerprint authentication itself, set"
+echo "omarchy.fido2_auth.fingerprint_support = false and rebuild."

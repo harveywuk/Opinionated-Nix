@@ -11,10 +11,33 @@ line until v4 lands.
 > **`quattro`**. Track `quattro`, NOT `omarchy-4`. (Our omarchy-nix *branch* is
 > still named `omarchy-4` — that's just our branch name, unrelated to upstream's.)
 
-- **Branch**: `quattro` @ `af828481` ("Give it a little more time", ~2026-07-04) — **unreleased**, no `v4` tag, active daily.
+- **Branch**: `quattro` @ `4d93ad58` ("Register the Chromium native messaging hosts on fresh installs", ~2026-07-27) — **unreleased**, no `v4` tag, active daily.
 - **Scope**: ~1000 commits ahead of `dev`. There is a **4.0 milestone** (1 issue open). Only ~5 open PRs, all additive.
 - **What gates the release** (from recent commits): shell UX polish, display/monitor edge-case hardening, and the package-backed channel model (dev → edge → rc → stable) + v3→v4 migration path.
-- **Port baseline**: `quattro` @ **`af828481`**, synced July 5 2026 (23 commits from `6ef0c019`): shared region picker `omarchy-capture-region` (screenshot + recording, Return = fullscreen, rotated monitors), plugin manager rewritten to plain git (`omarchy-plugin{,-catalog,-clone,-validate}` added; `-add/-remove/-source/-update` and `omarchy-config-shell-bar` deleted; new `omarchy-bar` owns bar config), `omarchy-shell` IPC via `qs ipc call`, clipboard watchers under `setpriv --pdeathsig`, notification history replay, shared `omarchy-theme-color` resolver, tmux window titles (`config/tmux/tmux.conf` re-vendored in full — it had lagged), simplified `omarchy-restart-shell` (kept the Nix `pkill -f .quickshell-wrapped` deviation). `test/` + `docs/` and the Arch-only `*-service-{dropbox,tailscale}` installers not vendored, as before.
+- **Port baseline**: `quattro` @ **`4d93ad58`**, synced July 27 2026 (384 commits from `af828481`). Highlights:
+  - **Themes re-rendered from upstream `colors.toml`.** quattro finished the move to generating every per-theme app config from `colors.toml` + `default/themed/*.tpl` (it deleted the checked-in `neovim.lua`/`vscode.json`/`btop.theme`/`waybar.css` copies). Our themes had **no `colors.toml` at all**, so v4 consumers of it (`omarchy-theme-color`, `shell.toml`, `gum_env.lua`, per-theme `hyprland.lua`, `keyboard.rgb`) were dead. Fixed by running upstream's own `omarchy-theme-set-templates` **offline**, once per theme, and checking in the result — the Nix architecture (pre-rendered `config/themes/<theme>/`) is unchanged, but the content is now upstream's. `theme-generator.nix` no longer synthesises `foot.ini`; upstream renders it. **Repeat this at each sync** (recipe below).
+  - **New Lupine theme** (light): rendered like the rest, plus a `lupine` base16 scheme in `custom-base16-schemes.nix`, a `themes.nix` entry, a `config.nix` enum entry, and a hand-written `zellij.kdl` (upstream ships no zellij template).
+  - **Hyprland 0.55.3 → 0.56.0.** quattro retuned every opacity value for 0.56's corrected alpha premultiplication (hyprwm/Hyprland#14403), so the vendored `default/hypr` looks wrong on 0.55.
+  - **shell/ re-vendored wholesale** (was a pristine copy of baseline). Launcher merged into the menu (`SUPER+SPACE` is now `omarchy-menu toggle`; `SUPER+ALT+SPACE` is gone), clock got a calendar popup panel (`SUPER+CTRL+ALT+D`), notification-centre and tmux-alert bar widgets extracted, nightlight moved to a first-party service, `quickshell kill` replaces process-killing.
+  - **`omarchy-restart-shell` no longer needs the Nix `pkill -f` deviation** — upstream now uses `quickshell kill --any-display`, which our rolling quickshell pin supports (verified). Deviation dropped.
+  - **bin/**: 85 scripts bulk-updated (they matched baseline exactly), 4 renamed (`-shell-bar-text-color`→`-bar-text-color`, `-capture-text-extraction`→`-capture-text`, `-dev-benchmark`→`-dev-benchmark-cli`, `-config-direct-boot`→`-setup-direct-boot`), 4 deleted upstream, 30 new runtime scripts vendored (audio tuning, bar plugin, webcam resize, display text size, hw probes, tmux alert, Taildrop send/receive, weather location, …). `omarchy-plymouth-{set,reset}` keep their Nix guards.
+  - **Fingerprint setup/remove re-Nix-flavoured.** The vendored copies had drifted back to upstream and were sed-editing `/etc/pam.d/{sudo,polkit-1}` — on NixOS that is overwritten on rebuild and can lock out sudo. They are enrolment-only again; the PAM side (including quattro's new **lid-state gate**, and polkit fingerprint) is declarative in `modules/nixos/fido2.nix`.
+  - **Fixed a latent `fido2.nix` bug**: `sudo_auth` set `security.pam.services.sudo.text`, which *replaces* the generated stack — it dropped the account/session/password lines (leaving sudo unusable) and silently discarded any fprintd rules. Now uses `u2fAuth`. Verified stack order: u2f → clamshell gate → fprintd → pam_unix.
+  - **New `modules/nixos/tuning.nix`**: zram (zstd, ram-sized, pri 100), `zswap.enabled=0`, the vm.* reclaim sysctls, `InhibitDelayMaxSec=15` logind drop-in, NetworkManager `wifi.powersave=2`.
+  - **Copy URL rewritten** to a native-messaging host (`omarchy-chromium-copy-url-host`) that owns the clipboard write and toast; the extension manifest's `key` is now vendored (the host's `allowed_origins` pins that extension ID). Registered via a home activation script running upstream's `omarchy-install-chromium-copy-url`.
+  - **New `modules/home-manager/audio-tuning.nix`**: per-laptop speaker tunings (`default/audio/**`) plus the filter-chain unit with a Nix `ExecStart`, and the Taildrop receiver as a home-manager user service gated on `tailscale` being present.
+  - Arabic font selection (Naskh over Nastaliq, incl. the Chromium/Electron last-resort rule) as `xdg.configFile` fontconfig; print-queue applet autostart suppressed; `EDITOR` export and the `mup`/`opencode --auto` alias changes in `default/bash`.
+  - Bindings/input needed **no Nix work** — they come from the re-vendored `default/hypr/*.lua` (incl. the non-Latin `us,`-prefix `kb_layout` logic and `shift:both_capslock`).
+
+  **Re-rendering the themes at sync time:**
+  ```bash
+  git -C ../omarchy worktree add /tmp/omarchy-quattro origin/quattro
+  export OMARCHY_PATH=/tmp/omarchy-quattro PATH="/tmp/omarchy-quattro/bin:$PATH"
+  # for each theme: copy themes/<t> to a scratch dir, point
+  # ~/.local/state/omarchy/current/next-theme at it, run omarchy-theme-set-templates,
+  # then copy the result over config/themes/<t> (keep our zellij.kdl + light.mode).
+  ```
+- **Previous baseline**: `quattro` @ **`af828481`**, synced July 5 2026 (23 commits from `6ef0c019`): shared region picker `omarchy-capture-region` (screenshot + recording, Return = fullscreen, rotated monitors), plugin manager rewritten to plain git (`omarchy-plugin{,-catalog,-clone,-validate}` added; `-add/-remove/-source/-update` and `omarchy-config-shell-bar` deleted; new `omarchy-bar` owns bar config), `omarchy-shell` IPC via `qs ipc call`, clipboard watchers under `setpriv --pdeathsig`, notification history replay, shared `omarchy-theme-color` resolver, tmux window titles (`config/tmux/tmux.conf` re-vendored in full — it had lagged), simplified `omarchy-restart-shell` (kept the Nix `pkill -f .quickshell-wrapped` deviation). `test/` + `docs/` and the Arch-only `*-service-{dropbox,tailscale}` installers not vendored, as before.
 - **Previous baseline**: re-synced from `omarchy-4` (June 7) onto **`quattro`** on June 30 — 246 commits: re-vendored `shell/` + `default/{hypr,omarchy,themed}` + `bin` (11 new / 82 updated / 4 removed), adopted `bootstrap.lua` (inlined with a HOME fallback — `OMARCHY_PATH` is NOT in Hyprland's parse env), and migrated `current/theme` to `~/.local/state/omarchy/current/theme`.
 - **omarchy-nix sync baseline**: `main` is at Omarchy `dev` `9cf1852` (v3.8.2 + 2 commits).
 
@@ -22,7 +45,7 @@ Re-measure before each work session:
 ```bash
 cd ../omarchy && git fetch origin quattro:refs/remotes/origin/quattro
 git log -1 --format='%h %ci' origin/quattro
-git rev-list --count af828481..origin/quattro   # delta since last port baseline
+git rev-list --count 4d93ad58..origin/quattro   # delta since last port baseline
 ```
 
 ## Setup menu on Nix (July 5, 2026)
@@ -37,6 +60,9 @@ Nix-generated read-only files — view-only by design; edits belong in
 nixos-config / HM settings (the `hm.lua` bridge loads last and overrides).
 
 ## Known follow-ups (quattro)
+- **`solitude` and `last-horizon` are still unported.** Both exist upstream (they predate the July 5 baseline) but have no `config/themes/` dir, base16 scheme, or `config.nix` enum entry here. Now cheap to add — render them the same way Lupine was.
+- **Arch lifecycle scripts remain vendored verbatim** and are Arch-only in practice: `omarchy-update*`, `omarchy-channel-*`, `omarchy-migrate*`, `omarchy-dev-*`, `omarchy-setup-system`, `omarchy-upgrade-to-quattro`, `omarchy-remove-launcher-entry` (uses `pacman -Qqo`). Kept for name parity; `nixos-rebuild` is the real path.
+- **`omarchy-setup-lock` not vendored** — it writes `/etc/pam.d/omarchy-lock-password`, which `modules/nixos/system.nix` already provides declaratively.
 - **Window-border theming is build-time only.** Runtime theme switches recolor foot/terminals + shell, but not Hyprland borders (our generated `hypr.looknfeel` sets borders from the build-time base16; quattro loads `require_optional("omarchy.current.theme.hyprland")`). To make borders follow runtime switches, generate a per-theme `hyprland.lua` (border colors) into each theme dir and stop hard-setting borders in `hypr.looknfeel`.
 - v4 `omarchy-theme-set` shells out to helpers we don't ship (`omarchy-restart-helix/-opencode`, `-theme-set-pi`) — harmless "command not found" noise. (`-theme-set-templates` and `-theme-set-tmux` are now vendored.)
 

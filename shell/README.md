@@ -23,7 +23,6 @@ shell/
     BarWidgetRegistry.qml unified registry for bar widgets (1p + 3p)
   plugins/
     bar/                 first-party plugins (see plugins/README.md)
-    launcher/
     image-picker/
     menu/
     notifications/
@@ -131,7 +130,7 @@ You can still drop a plugin in without git:
 1. Put it in `~/.config/omarchy/plugins/<plugin-id>/` with a `manifest.json`
    plus the QML referenced from its `entryPoints`.
 2. `omarchy plugin rescan`.
-3. `omarchy plugin enable <id>` (bar widgets also need `omarchy bar add <id>`; full bar replacements are selected with `omarchy bar use <id>`).
+3. `omarchy plugin enable <id>` (bar widgets also need `omarchy bar plugin add <id>`; full bar replacements are selected with `omarchy bar use <id>`).
 
 The lower-level IPC equivalents remain available via `omarchy-shell shell rescanPlugins`,
 `omarchy-shell shell setPluginEnabled <id> true`, and `omarchy-shell shell listPlugins`.
@@ -180,15 +179,14 @@ quickshell ipc -p $OMARCHY_PATH/shell call shell ping
 ```
 
 Hyprland autostart launches the shell directly with `quickshell -p
-$OMARCHY_PATH/shell`. Use `omarchy-restart-shell` (`quickshell reload`) to
-reload the long-running shell process.
+$OMARCHY_PATH/shell`. Use `omarchy-restart-shell` to stop every running
+instance of that config and launch one fresh shell process.
 
 A convenience wrapper, [`omarchy-shell`](../bin/omarchy-shell), forwards IPC
 calls to the running shell. It does not start the shell.
 
 ```
 omarchy-shell shell ping
-omarchy-shell shell openBarConfig
 omarchy-shell shell toggle omarchy.menu '{"menu":"root"}'
 omarchy-shell shell listPlugins
 omarchy-shell shell rescanPlugins
@@ -256,7 +254,7 @@ becomes the authoritative file — we do **not** deep-merge defaults back in.
    like `Clock` and `AudioPanel` forward.
 5. **Third-party enabled ⇔ present.** A third-party plugin is enabled iff
    its id appears somewhere in shell.json. For full bar options, that means
-   `bar.id`; for bar widgets, the bar settings UI adds/removes layout entries;
+   `bar.id`; for bar widgets, `omarchy bar plugin` adds/removes layout entries;
    other plugin kinds are enabled with the shell IPC. First-party non-bar
    plugins are always enabled.
 6. **Multiple instances** are allowed when a manifest sets

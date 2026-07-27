@@ -5,6 +5,23 @@
   ...
 }: let
   cfg = config.omarchy;
+
+  # Upstream gates pam_fprintd behind the lid state so a shut clamshell (where
+  # the reader is unreachable) drops straight to the password prompt instead of
+  # blocking until the reader times out. pam_exec needs a literal absolute path,
+  # so point it at the store copy rather than $OMARCHY_PATH/bin.
+  lidClosed = pkgs.writeShellScript "omarchy-hw-laptop-closed" (builtins.readFile ../../bin/omarchy-hw-laptop-closed);
+
+  # Insert the gate immediately before fprintd so success=1 skips exactly it.
+  clamshellGate = service: {
+    rules.auth.omarchy-clamshell-gate = {
+      enable = cfg.fido2_auth.fingerprint_support;
+      order = config.security.pam.services.${service}.rules.auth.fprintd.order - 1;
+      control = "[success=1 default=ignore]";
+      modulePath = "${pkgs.pam}/lib/security/pam_exec.so";
+      args = ["quiet" "${lidClosed}"];
+    };
+  };
 in {
   config = lib.mkIf (cfg ? fido2_auth && cfg.fido2_auth.enable) {
     # Enable FIDO2/WebAuthn support
@@ -41,21 +58,28 @@ in {
     # Configure PAM for FIDO2 and fingerprint authentication
     security.pam.services = {
       sudo = lib.mkMerge [
+        # Try FIDO2 first, then fall back to password. Must go through u2fAuth
+        # rather than a `text` override: setting `text` replaces the whole
+        # generated stack, which drops the account/session/password lines (and
+        # any fprintd rules below) and leaves sudo unusable.
         (lib.mkIf (cfg.fido2_auth.sudo_auth) {
           u2fAuth = true;
-          # Try FIDO2 first, then fall back to password
-          text = lib.mkOrder 100 ''
-            auth sufficient pam_u2f.so cue
-            auth include system-auth
-          '';
         })
         (lib.mkIf (cfg.fido2_auth.fingerprint_support) {
           fprintAuth = true;
         })
+        (clamshellGate "sudo")
       ];
       login = lib.mkIf (cfg.fido2_auth.fingerprint_support) {
         fprintAuth = true;
       };
+      # Fingerprint for polkit prompts, gated by lid state like sudo.
+      polkit-1 = lib.mkMerge [
+        (lib.mkIf (cfg.fido2_auth.fingerprint_support) {
+          fprintAuth = true;
+        })
+        (clamshellGate "polkit-1")
+      ];
       # Omarchy 4 shell lock authenticates against the omarchy-lock-fingerprint
       # PAM service (shell/plugins/lock PamContext config:"omarchy-lock-fingerprint").
       omarchy-lock-fingerprint = lib.mkIf (cfg.fido2_auth.fingerprint_support) {

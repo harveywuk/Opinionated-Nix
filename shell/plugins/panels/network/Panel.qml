@@ -16,7 +16,13 @@ Panel {
   // Centralized close so callers can't forget to drop the passphrase prompt.
   function close() {
     root.controller.hide()
+    cancelPasswordPrompt()
+  }
+
+  function cancelPasswordPrompt() {
     passwordSsid = ""
+    passwordText = ""
+    identityText = ""
   }
 
   // Live connection details from `ip` / /sys / iw.
@@ -84,6 +90,7 @@ Panel {
   property string failureReason: ""
   property string passwordSsid: ""
   property string passwordText: ""
+  property string identityText: ""
 
   // True while any wifi action is mid-flight. Rows
   // disable themselves on this so clicks on the other rows don't silently
@@ -102,7 +109,9 @@ Panel {
   property int headerIndex: 0
   readonly property bool canDisconnect: !!connectedWifiNetwork
   readonly property bool headerHasDisconnect: false
-  readonly property int headerActionCount: 0
+  readonly property int headerActionCount: networkManagerAvailable ? 1 : 0
+  readonly property bool headerHasCursor: cursorActive && focusSection === "header"
+  readonly property int heroRingPad: Style.space(6)
   readonly property var dnsProviders: ["DHCP", "Cloudflare", "Google", "Custom"]
   property int dnsIndex: 0
 
@@ -118,8 +127,20 @@ Panel {
     headerIndex = Math.max(0, Math.min(headerActionCount - 1, headerIndex + delta))
   }
 
+  function toggleNetwork() {
+    if (!networkManagerAvailable) return
+    Networking.wifiEnabled = !Networking.wifiEnabled
+    Qt.callLater(function() { root.refresh(true) })
+  }
+
   function activateHeader() {
-    if (headerHasDisconnect && headerIndex === 0 && !busy) disconnect(connectedWifiNetwork)
+    toggleNetwork()
+  }
+
+  function setHeaderCursor() {
+    cursorActive = true
+    focusSection = "header"
+    headerIndex = 0
   }
 
   function selectDnsByDelta(delta) {
@@ -245,24 +266,22 @@ Panel {
     connectKnown(net.ssid)
   }
 
-  // Bar pill state. Polled locally so this panel is self-contained;
-  // populated by networkProc + networkTimer below.
-  property string kind: "disconnected"
-  property string label: ""
-  property int signalStrength: -1
-  property string frequency: ""
-
-  function updateNetwork(raw) {
-    var parsed = Model.parseNetworkStatus(raw)
-    kind = parsed.kind
-    label = parsed.label
-    signalStrength = parsed.signalStrength
-    frequency = parsed.frequency
+  // Bar pill state, derived from the native NetworkManager service so the
+  // icon reflects connection changes without polling. Wired is preferred
+  // when both are up, matching the default-route device.
+  readonly property var wiredDevice: findDevice(DeviceType.Wired)
+  readonly property string kind: {
+    if (wiredDevice && wiredDevice.connected) return "ethernet"
+    if (connectedWifiNetwork) return "wifi"
+    return "disconnected"
   }
+  readonly property int signalStrength: connectedWifiNetwork
+    ? Math.round((connectedWifiNetwork.signalStrength || 0) * 100)
+    : -1
 
   function copyToClipboard(value) {
     if (!value || !root.bar) return
-    Quickshell.execDetached(["bash", "-lc", "printf %s " + Util.shellQuote(value) + " | wl-copy"])
+    Quickshell.execDetached(["bash", "-c", "printf %s " + Util.shellQuote(value) + " | wl-copy"])
   }
 
   readonly property string icon: Model.connectionIcon(kind, signalStrength)
@@ -271,7 +290,7 @@ Panel {
     if (scanWifi === undefined) scanWifi = false
     if (!detailsProc.running) detailsProc.running = true
     if (!dnsProc.running) {
-      dnsProc.command = ["bash", "-lc", root.dnsCommand("")]
+      dnsProc.command = ["bash", "-c", root.dnsCommand("")]
       dnsProc.running = true
     }
     if (wifiDevice) {
@@ -358,12 +377,19 @@ Panel {
     return Model.formatPacketLoss(percent)
   }
 
+  // Prefer a connected device: a machine can expose several NICs of the
+  // same type (e.g. an idle onboard port alongside the active adapter),
+  // and the first-enumerated one may be carrierless.
   function findDevice(type) {
     var devices = networkDevices || []
+    var fallback = null
     for (var i = 0; i < devices.length; i++) {
-      if (devices[i] && devices[i].type === type) return devices[i]
+      var device = devices[i]
+      if (!device || device.type !== type) continue
+      if (device.connected) return device
+      if (!fallback) fallback = device
     }
-    return null
+    return fallback
   }
 
   function findConnectedWifiNetwork() {
@@ -467,7 +493,7 @@ Panel {
     }
 
     root.pendingDnsProvider = provider
-    actionProc.command = ["bash", "-lc", root.dnsCommand(provider)]
+    actionProc.command = ["bash", "-c", root.dnsCommand(provider)]
     actionProc.running = true
     root.close()
   }
@@ -477,7 +503,10 @@ Panel {
   }
 
   function openPasswordPrompt(ssid) {
-    if (passwordSsid !== ssid) passwordText = ""
+    if (passwordSsid !== ssid) {
+      passwordText = ""
+      identityText = ""
+    }
     passwordSsid = ssid
   }
 
@@ -553,6 +582,26 @@ Panel {
 
   function connectWithPassphrase(ssid, passphrase) {
     runNetworkAction("connect", networkForSsid(ssid), function(network) { network.connectWithPsk(passphrase) })
+  }
+
+  function connectEnterprise(ssid, identity, passphrase) {
+    runNetworkAction("connect", networkForSsid(ssid), function(network) {
+      enterpriseConnect.secret = passphrase
+      enterpriseConnect.command = ["bash", "-c", Model.enterpriseConnectScript, "nmcli-eap", ssid, identity]
+      enterpriseConnect.running = true
+    })
+  }
+
+  // Creates and activates the 802.1X profile (see Model.enterpriseConnectScript).
+  // The password goes over stdin, never argv.
+  Process {
+    id: enterpriseConnect
+    property string secret: ""
+    stdinEnabled: true
+    onStarted: {
+      write(secret + "\n")
+      secret = ""
+    }
   }
 
   function disconnect(network) {
@@ -707,14 +756,11 @@ Panel {
     }
   }
 
-  WidgetButton {
+  BarIconButton {
     id: button
     anchors.fill: parent
     bar: root.bar
     text: root.icon
-    fixedWidth: root.bar && root.bar.vertical ? -1 : Style.space(27)
-    fixedHeight: root.bar && root.bar.vertical ? Style.space(26) : -1
-    rightExtraMargin: 5.5
 
     onPressed: function(b) {
       if (root.opened) root.close()
@@ -761,7 +807,7 @@ Panel {
             // one; otherwise stays put. j drops into the wifi list if there's
             // anywhere to land.
             if (dy < 0) {
-              if (root.headerHasDisconnect) {
+              if (root.headerActionCount > 0) {
                 root.focusSection = "header"
                 root.headerIndex = 0
               }
@@ -796,6 +842,7 @@ Panel {
       onTabRequested: function(direction) { root.switchPanel(direction) }
       onTextKey: function(t) {
         if (t === "r" || t === "R") root.refresh()
+        else if (t === "w" || t === "W") root.toggleNetwork()
       }
 
     Column {
@@ -808,7 +855,18 @@ Panel {
       // ---------- Hero: network icon · SSID + state · actions ----------
       Item {
         width: parent.width
-        implicitHeight: Math.max(heroIcon.implicitHeight, heroLabels.implicitHeight)
+        implicitHeight: Math.max(heroIcon.implicitHeight, heroLabels.implicitHeight) + root.heroRingPad * 2
+
+        // Keyboard focus ring around the hero Wi-Fi toggle. heroIcon is inset
+        // by heroRingPad so this ring stays inside the panel's clip box.
+        BorderSurface {
+          anchors.fill: heroIcon
+          anchors.margins: -root.heroRingPad
+          color: "transparent"
+          radius: Style.cornerRadius
+          visible: root.headerHasCursor
+          borderSpec: Border.controlSpec("hover-cursor", root.bar.foreground, Color.accent)
+        }
 
         Text {
           id: heroIcon
@@ -818,6 +876,7 @@ Panel {
           font.pixelSize: Style.font.display
           opacity: root.networkManagerAvailable ? 1.0 : 0.5
           anchors.left: parent.left
+          anchors.leftMargin: root.heroRingPad
           anchors.verticalCenter: parent.verticalCenter
 
           MouseArea {
@@ -826,6 +885,7 @@ Panel {
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             enabled: root.networkManagerAvailable
+            onContainsMouseChanged: if (containsMouse) root.setHeaderCursor()
             onClicked: {
               Networking.wifiEnabled = !Networking.wifiEnabled
               Qt.callLater(function() { root.refresh(true) })
@@ -1005,6 +1065,7 @@ Panel {
             Button {
               id: speedRunButton
               text: root.speedTestRunning ? "Running..." : "Run"
+              tooltipText: "Run using fast.com"
               enabled: !root.speedTestRunning
               foreground: root.bar.foreground
               fontFamily: root.bar.fontFamily
@@ -1211,6 +1272,9 @@ Panel {
     readonly property bool isConnected: net && net.connected
     readonly property bool isKnown: !!(net && net.known)
     readonly property bool isProtected: net ? root.isProtected(net.security) : false
+    readonly property bool isEnterprise: net
+      ? (net.security === WifiSecurityType.Wpa2Eap || net.security === WifiSecurityType.WpaEap)
+      : false
     readonly property bool canForgetFromLock: isKnown && isProtected && !isConnected
     readonly property bool isSelected: root.focusSection === "wifi" && root.selectedIndex === index
     readonly property bool forgetFocused: isSelected && root.wifiActionFocused && canForgetFromLock
@@ -1226,6 +1290,12 @@ Panel {
     readonly property bool isBusy: root.actionKind !== "" && root.actionSsid === (net ? net.ssid : "")
     readonly property bool isFailed: root.failureReason !== "" && root.failureSsid === (net ? net.ssid : "")
     readonly property bool isPasswordOpen: root.passwordSsid !== "" && root.passwordSsid === (net ? net.ssid : "")
+
+    function submitCredentials() {
+      if (!net || root.busy || root.passwordText.length === 0) return
+      if (!isEnterprise) return root.connectWithPassphrase(net.ssid, root.passwordText)
+      if (root.identityText.length > 0) root.connectEnterprise(net.ssid, root.identityText, root.passwordText)
+    }
 
     Connections {
       target: row.net ? row.net.network : null
@@ -1426,15 +1496,40 @@ Panel {
       anchors.leftMargin: Style.space(10)
       anchors.rightMargin: Style.space(10)
       anchors.topMargin: Style.space(4)
-      implicitHeight: pwField.implicitHeight + Style.spacing.rowGap
+      implicitHeight: (idField.visible ? idField.implicitHeight + Style.space(4) : 0) + pwField.implicitHeight + Style.spacing.rowGap
       height: implicitHeight
+
+      TextField {
+        id: idField
+        visible: row.isEnterprise && !row.isBusy && !row.isFailed
+        anchors.left: parent.left
+        anchors.right: connectPwBtn.left
+        anchors.top: parent.top
+        anchors.rightMargin: Style.space(6)
+        placeholderText: "Identity (user@domain)"
+        font.family: Style.font.family
+        font.pixelSize: Style.font.body
+        foreground: root.bar.foreground
+        horizontalPadding: Style.spacing.controlGap
+        verticalPadding: Style.spacing.controlPaddingY
+        enabled: !row.isBusy
+        text: row.isPasswordOpen ? root.identityText : ""
+
+        onAccepted: pwField.forceActiveFocus()
+        onTextChanged: if (row.isPasswordOpen && text !== root.identityText) root.identityText = text
+        Keys.onEscapePressed: root.cancelPasswordPrompt()
+
+        onVisibleChanged: if (visible) Qt.callLater(forceActiveFocus)
+        Component.onCompleted: if (visible) Qt.callLater(forceActiveFocus)
+      }
 
       TextField {
         id: pwField
         visible: !row.isBusy && !row.isFailed
         anchors.left: parent.left
         anchors.right: connectPwBtn.left
-        anchors.verticalCenter: parent.verticalCenter
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: Style.spacing.rowGap / 2
         anchors.rightMargin: Style.space(6)
         password: true
         placeholderText: "Passphrase"
@@ -1446,14 +1541,12 @@ Panel {
         enabled: !row.isBusy
         text: row.isPasswordOpen ? root.passwordText : ""
 
-        onAccepted: {
-          if (!root.busy && row.net && text.length > 0) root.connectWithPassphrase(row.net.ssid, text)
-        }
+        onAccepted: row.submitCredentials()
         onTextChanged: if (row.isPasswordOpen && text !== root.passwordText) root.passwordText = text
-        Keys.onEscapePressed: { root.passwordSsid = ""; root.passwordText = "" }
+        Keys.onEscapePressed: root.cancelPasswordPrompt()
 
-        onVisibleChanged: if (visible) Qt.callLater(forceActiveFocus)
-        Component.onCompleted: if (visible) Qt.callLater(forceActiveFocus)
+        onVisibleChanged: if (visible && !row.isEnterprise) Qt.callLater(forceActiveFocus)
+        Component.onCompleted: if (visible && !row.isEnterprise) Qt.callLater(forceActiveFocus)
       }
 
       BorderSurface {
@@ -1486,34 +1579,16 @@ Panel {
         visible: !row.isBusy && !row.isFailed
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
-        enabled: row.net && pwField.text.length > 0
+        enabled: row.net && pwField.text.length > 0 && (!row.isEnterprise || idField.text.length > 0)
         iconText: "󰄬"
         tooltipText: "Connect"
         foreground: root.bar.foreground
         fontFamily: root.bar.fontFamily
-        onClicked: if (row.net) root.connectWithPassphrase(row.net.ssid, root.passwordText)
+        onClicked: row.submitCredentials()
       }
     }
   }
 
-  // Poll the wifi/ethernet pill state every 3s. Local to this panel so
-  // Bar.qml does not need to mirror network state.
-  Process {
-    id: networkProc
-    command: ["omarchy-network-status"]
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: root.updateNetwork(text)
-    }
-  }
-
-  Timer {
-    interval: 3000
-    running: true
-    repeat: true
-    triggeredOnStart: true
-    onTriggered: if (!networkProc.running) networkProc.running = true
-  }
 
   component DetailValue: InfoValue {
     property bool copyable: false

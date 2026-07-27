@@ -1,40 +1,43 @@
-[window]
-padding.x = 12
-padding.y = 12
-
-[font]
-size = 12.0
-
-[colors]
 [colors.primary]
-background = "#0d0d0d"
+background = "#000000"
 foreground = "#ffffff"
-dim_foreground = "#fdfdfd"
 
 [colors.cursor]
-text = "#0d0d0d"
+text = "#000000"
 cursor = "#ffffff"
 
 [colors.vi_mode_cursor]
-text = "#0d0d0d"
+text = "#000000"
 cursor = "#ffffff"
 
-[colors.selection]
-text = "CellForeground"
+[colors.search.matches]
+foreground = "#000000"
+background = "#cecece"
+
+[colors.search.focused_match]
+foreground = "#000000"
+background = "#a4a4a4"
+
+[colors.footer_bar]
+foreground = "#000000"
 background = "#ffffff"
 
+[colors.selection]
+text = "#ffffff"
+background = "#1a1a1a"
+
 [colors.normal]
-black = "#0d0d0d"
+black = "#000000"
 red = "#a4a4a4"
 green = "#b6b6b6"
 yellow = "#cecece"
 blue = "#8d8d8d"
 magenta = "#9b9b9b"
 cyan = "#b0b0b0"
-white = "#ececec"
+white = "#ffffff"
 
 [colors.bright]
-black = "#fdfdfd"
+black = "#7a7a7a"
 red = "#a4a4a4"
 green = "#b6b6b6"
 yellow = "#cecece"

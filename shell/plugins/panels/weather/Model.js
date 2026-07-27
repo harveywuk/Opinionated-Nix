@@ -10,6 +10,77 @@ function parseWeatherStatus(raw) {
   }
 }
 
+// weather.json holds {"name": ..., "latitude": ..., "longitude": ...} (see
+// omarchy-weather-location, which owns the format). Missing, blank, or
+// unparseable means the location is auto-detected from the IP address.
+function parseLocationFile(raw) {
+  var unset = { name: "", latitude: null, longitude: null }
+  try {
+    var data = JSON.parse(String(raw || ""))
+    if (!data || typeof data !== "object") return unset
+
+    var latitude = parseFloat(data.latitude)
+    var longitude = parseFloat(data.longitude)
+    var hasCoordinates = !isNaN(latitude) && !isNaN(longitude)
+    return {
+      name: typeof data.name === "string" ? data.name.replace(/^\s+|\s+$/g, "") : "",
+      latitude: hasCoordinates ? latitude : null,
+      longitude: hasCoordinates ? longitude : null
+    }
+  } catch (e) {
+    return unset
+  }
+}
+
+// wttr.in path segment for a configured location: exact coordinates when
+// both are present, the URL-encoded name as a fallback (hand-edited
+// weather.loc files may only carry a name), empty for IP auto-detect.
+function wttrLocationQuery(location, latitude, longitude) {
+  var lat = parseFloat(String(latitude))
+  var lon = parseFloat(String(longitude))
+  if (!isNaN(lat) && !isNaN(lon)) return lat + "," + lon
+
+  var name = String(location || "").replace(/^\s+|\s+$/g, "")
+  return name === "" ? "" : encodeURIComponent(name)
+}
+
+// Open-Meteo geocoding response → suggestion rows for the location picker.
+function parseGeocodingResults(raw) {
+  try {
+    var data = JSON.parse(String(raw || "{}"))
+    var results = data.results
+    if (!results || !results.length) return []
+
+    var out = []
+    for (var i = 0; i < results.length; i++) {
+      var r = results[i]
+      if (!r || !r.name || r.latitude === undefined || r.longitude === undefined) continue
+      var region = [r.admin1, r.country].filter(function(part) { return !!part }).join(", ")
+      out.push({
+        name: String(r.name),
+        description: region,
+        latitude: r.latitude,
+        longitude: r.longitude
+      })
+    }
+    return out
+  } catch (e) {
+    return []
+  }
+}
+
+function locationCommit(text, suggestions, selectedIndex) {
+  var name = String(text || "").replace(/^\s+|\s+$/g, "")
+  if (name === "") return { name: "", latitude: null, longitude: null }
+
+  var choices = suggestions || []
+  var index = Math.max(0, Math.min(parseInt(selectedIndex, 10) || 0, choices.length - 1))
+  var suggestion = choices[index]
+  if (suggestion) return suggestion
+
+  return { name: name, latitude: null, longitude: null }
+}
+
 function isFutureForecastDate(dateString, todayString) {
   if (!dateString) return false
   return String(dateString).slice(0, 10) > String(todayString || "")
@@ -94,6 +165,45 @@ function openMeteoForecastDays(dailyForecastReport, todayString) {
   return result
 }
 
+// Open-Meteo bundles current conditions with the daily forecast request and
+// answers far faster than wttr.in. Normalize them to wttr's
+// current_condition shape so the panel can use either source
+// interchangeably. Open-Meteo reports metric (°C, km/h).
+function openMeteoCurrentCondition(dailyForecastReport) {
+  var current = dailyForecastReport && dailyForecastReport.current ? dailyForecastReport.current : null
+  if (!current || current.temperature_2m === undefined || current.temperature_2m === null) return null
+  return {
+    temp_C: roundedTemp(current.temperature_2m),
+    temp_F: roundedTemp(celsiusToFahrenheit(current.temperature_2m)),
+    FeelsLikeC: roundedTemp(current.apparent_temperature),
+    FeelsLikeF: roundedTemp(celsiusToFahrenheit(current.apparent_temperature)),
+    windspeedKmph: roundedTemp(current.wind_speed_10m),
+    windspeedMiles: roundedTemp(current.wind_speed_10m * 0.621371),
+    humidity: roundedTemp(current.relative_humidity_2m),
+    openMeteoWeatherCode: current.weather_code,
+    isDay: current.is_day
+  }
+}
+
+function currentIcon(current, fallback) {
+  if (!current) return fallback || ""
+  if (current.openMeteoWeatherCode !== undefined && current.openMeteoWeatherCode !== null)
+    return iconForOpenMeteoCode(current.openMeteoWeatherCode, Number(current.isDay) === 0)
+  if (current.weatherCode !== undefined && current.weatherCode !== null)
+    return iconForCode(current.weatherCode, false)
+  return fallback || ""
+}
+
+// wttr.in has no day/night flag. Use its icon only to fill an empty initial
+// state, never to replace a day/night-aware icon resolved by Open-Meteo.
+function provisionalCurrentIcon(current, resolvedIcon) {
+  return resolvedIcon || currentIcon(current, "")
+}
+
+function weatherResponseCompletesSave(hasConfiguredCoordinates, source) {
+  return hasConfiguredCoordinates ? source === "open-meteo" : source === "wttr"
+}
+
 function wttrNextForecastDays(report, todayString) {
   var days = report && report.weather ? report.weather : []
   var result = []
@@ -136,17 +246,17 @@ function dayIcon(day) {
   return iconForCode(best.weatherCode, false)
 }
 
-function iconForOpenMeteoCode(code) {
+function iconForOpenMeteoCode(code, night) {
   var c = parseInt(String(code || "0"), 10)
-  if (c === 0) return iconForCode(113, false)
-  if (c === 1 || c === 2) return iconForCode(116, false)
-  if (c === 3) return iconForCode(119, false)
-  if (c === 45 || c === 48) return iconForCode(143, false)
-  if (c === 51 || c === 53 || c === 55 || c === 56 || c === 57 || c === 61) return iconForCode(266, false)
-  if (c === 63 || c === 65 || c === 66 || c === 67 || c === 80 || c === 81 || c === 82) return iconForCode(308, false)
-  if (c === 71 || c === 73 || c === 75 || c === 77 || c === 85 || c === 86) return iconForCode(338, false)
-  if (c === 95 || c === 96 || c === 99) return iconForCode(389, false)
-  return iconForCode(119, false)
+  if (c === 0) return iconForCode(113, night)
+  if (c === 1 || c === 2) return iconForCode(116, night)
+  if (c === 3) return iconForCode(119, night)
+  if (c === 45 || c === 48) return iconForCode(143, night)
+  if (c === 51 || c === 53 || c === 55 || c === 56 || c === 57 || c === 61) return iconForCode(266, night)
+  if (c === 63 || c === 65 || c === 66 || c === 67 || c === 80 || c === 81 || c === 82) return iconForCode(308, night)
+  if (c === 71 || c === 73 || c === 75 || c === 77 || c === 85 || c === 86) return iconForCode(338, night)
+  if (c === 95 || c === 96 || c === 99) return iconForCode(389, night)
+  return iconForCode(119, night)
 }
 
 function iconForCode(code, night) {
@@ -155,7 +265,7 @@ function iconForCode(code, night) {
     case 113: return night ? "" : ""
     case 116: return night ? "" : ""
     case 119: case 122: return ""
-    case 143: case 248: case 260: return ""
+    case 143: case 248: case 260: return night ? "\ue346" : "\ue313"
     case 176: case 263: case 353: return night ? "" : ""
     case 179: case 227: case 230: case 323: case 326: case 368: return night ? "" : ""
     case 182: case 185: case 281: case 284: case 311: case 314:
@@ -170,6 +280,10 @@ function iconForCode(code, night) {
 if (typeof module !== "undefined") {
   module.exports = {
     parseWeatherStatus: parseWeatherStatus,
+    parseLocationFile: parseLocationFile,
+    wttrLocationQuery: wttrLocationQuery,
+    parseGeocodingResults: parseGeocodingResults,
+    locationCommit: locationCommit,
     isFutureForecastDate: isFutureForecastDate,
     roundedTemp: roundedTemp,
     celsiusToFahrenheit: celsiusToFahrenheit,
@@ -180,6 +294,10 @@ if (typeof module !== "undefined") {
     shouldUseImperial: shouldUseImperial,
     dayName: dayName,
     openMeteoForecastDays: openMeteoForecastDays,
+    openMeteoCurrentCondition: openMeteoCurrentCondition,
+    currentIcon: currentIcon,
+    provisionalCurrentIcon: provisionalCurrentIcon,
+    weatherResponseCompletesSave: weatherResponseCompletesSave,
     wttrNextForecastDays: wttrNextForecastDays,
     buildForecastDays: buildForecastDays,
     bareTempForDay: bareTempForDay,

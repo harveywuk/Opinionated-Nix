@@ -12,6 +12,7 @@ BarWidget {
     if ("bar" in target) target.bar = root.bar
     if ("settings" in target) target.settings = root.settings
     if ("anchorItem" in target) target.anchorItem = button
+    if ("hostWidget" in target) target.hostWidget = root
   }
 
   function refresh() {
@@ -22,8 +23,31 @@ BarWidget {
     if (panelLoader.item && panelLoader.item.toggle) panelLoader.item.toggle()
   }
 
+  // Shape contract for shell.summon/hide/toggle routing (Bar.findPanelWidget
+  // requires open/close/opened on the bar-widget root). Open maps to the
+  // panel's hotkey path so summoning suppresses the center hover reveal,
+  // matching what the old per-plugin IpcHandler did.
+  readonly property bool opened: panelLoader.item ? panelLoader.item.opened === true : false
+
+  function open() {
+    if (panelLoader.item && panelLoader.item.openFromHotkey) panelLoader.item.openFromHotkey()
+  }
+
+  function close() {
+    if (panelLoader.item && panelLoader.item.close) panelLoader.item.close()
+  }
+
+  // Forwarded so this widget can stand in for the panel as the bar's popout
+  // identity: Bar.requestPopout prefers closeForPopoutSwitch over close, and
+  // KeyboardPanel reads popoutSwitchClosing back off its owner.
+  readonly property bool popoutSwitchClosing: panelLoader.item ? panelLoader.item.popoutSwitchClosing === true : false
+
+  function closeForPopoutSwitch() {
+    if (panelLoader.item) panelLoader.item.closeForPopoutSwitch()
+  }
+
   visible: panelLoader.item && panelLoader.item.label !== ""
-  implicitWidth: bar && bar.vertical ? button.implicitWidth : button.implicitWidth + Style.spacing.labelGap
+  implicitWidth: button.implicitWidth
   implicitHeight: button.implicitHeight
 
   onBarChanged: injectPanel()
@@ -40,16 +64,13 @@ BarWidget {
     }
   }
 
-  WidgetButton {
+  BarIconButton {
     id: button
-    anchors.verticalCenter: parent.verticalCenter
-    x: bar && bar.vertical ? Math.round((parent.width - width) / 2) : 0
-    width: implicitWidth
-    height: implicitHeight
+    anchors.fill: parent
     bar: root.bar
     text: panelLoader.item ? panelLoader.item.label : ""
+    slotSize: Style.bar.statusSlot
     active: panelLoader.item && panelLoader.item.klass === "active"
-    horizontalMargin: 2.5
     // Tooltip suppressed because the panel is the detail view.
     tooltipText: ""
 

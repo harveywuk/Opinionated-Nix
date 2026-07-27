@@ -2,9 +2,9 @@
 @define-color background #222222;
 @define-color accent #78824b;
 @define-color muted #666666;
-@define-color card_bg #2a2a2a;
-@define-color text_dark #c2c2b0;
-@define-color accent_hover #5f875f;
+@define-color card_bg #2c2c2c;
+@define-color text_dark #222222;
+@define-color accent_hover #78824b;
 @define-color selected_tab #78824b;
 @define-color text #c2c2b0;
 

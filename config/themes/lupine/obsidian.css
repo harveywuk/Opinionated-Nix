@@ -1,0 +1,99 @@
+/* Omarchy Theme for Obsidian */
+
+.theme-dark, .theme-light {
+  /* Core colors */
+  --background-primary: #fafafa;
+  --background-primary-alt: #fafafa;
+  --background-secondary: #fafafa;
+  --background-secondary-alt: #fafafa;
+  --text-normal: #212121;
+
+  /* Selection colors */
+  --text-selection: #d0d0d0;
+
+  /* Border color */
+  --background-modifier-border: #9e9e9e;
+
+  /* Semantic heading colors */
+  --text-title-h1: #c900c4;
+  --text-title-h2: #4a2fd0;
+  --text-title-h3: #026fde;
+  --text-title-h4: #3264eb;
+  --text-title-h5: #8a4ad7;
+  --text-title-h6: #8a4ad7;
+
+  /* Links and accents */
+  --text-link: #3264eb;
+  --text-accent: #3264eb;
+  --text-accent-hover: #3264eb;
+  --interactive-accent: #3264eb;
+  --interactive-accent-hover: #3264eb;
+
+  /* Muted text */
+  --text-muted: color-mix(in srgb, #212121 70%, transparent);
+  --text-faint: color-mix(in srgb, #212121 55%, transparent);
+
+  /* Code */
+  --code-normal: #0c67de;
+
+  /* Errors and success */
+  --text-error: #c900c4;
+  --text-error-hover: #c900c4;
+  --text-success: #4a2fd0;
+
+  /* Tags */
+  --tag-color: #0c67de;
+  --tag-background: #9e9e9e;
+
+  /* Graph */
+  --graph-line: #9e9e9e;
+  --graph-node: #3264eb;
+  --graph-node-focused: #3264eb;
+  --graph-node-tag: #0c67de;
+  --graph-node-attachment: #4a2fd0;
+}
+
+/* Headers */
+.cm-header-1, .markdown-rendered h1 { color: var(--text-title-h1); }
+.cm-header-2, .markdown-rendered h2 { color: var(--text-title-h2); }
+.cm-header-3, .markdown-rendered h3 { color: var(--text-title-h3); }
+.cm-header-4, .markdown-rendered h4 { color: var(--text-title-h4); }
+.cm-header-5, .markdown-rendered h5 { color: var(--text-title-h5); }
+.cm-header-6, .markdown-rendered h6 { color: var(--text-title-h6); }
+
+/* Code blocks */
+.markdown-rendered code {
+  color: #0c67de;
+}
+
+/* Syntax highlighting */
+.cm-s-obsidian span.cm-keyword { color: #c900c4; }
+.cm-s-obsidian span.cm-string { color: #4a2fd0; }
+.cm-s-obsidian span.cm-number { color: #026fde; }
+.cm-s-obsidian span.cm-comment { color: #9e9e9e; }
+.cm-s-obsidian span.cm-operator { color: #3264eb; }
+.cm-s-obsidian span.cm-def { color: #3264eb; }
+
+/* Links */
+.markdown-rendered a {
+  color: var(--text-link);
+}
+
+/* Blockquotes */
+.markdown-rendered blockquote {
+  border-left-color: #3264eb;
+}
+
+/* Active elements */
+.workspace-leaf.mod-active .workspace-leaf-header-title {
+  color: var(--interactive-accent);
+}
+
+.nav-file-title.is-active {
+  color: var(--interactive-accent);
+}
+
+/* Search results */
+.search-result-file-title {
+  color: var(--interactive-accent);
+}
