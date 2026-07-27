@@ -342,7 +342,7 @@ in {
   # runtime replaces it, then the next home-manager switch tries to back it up and
   # dies on a stale monitors.lua.backup. Seed the default once and then leave it
   # to the user/runtime, matching upstream omarchy (installs it, then you edit it).
-  home.activation.seedMonitorsLua = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+  home.activation.seedMonitorsLua = lib.hm.dag.entryAfter ["writeBoundary"] ''
     monitors="$HOME/.config/hypr/monitors.lua"
     if [ ! -e "$monitors" ]; then
       run mkdir -p "$(dirname "$monitors")"
