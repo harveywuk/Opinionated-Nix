@@ -6,7 +6,6 @@ inputs: {
   ...
 }: let
   cfg = config.omarchy;
-  palette = config.colorScheme.palette;
 
   hasNvidiaDrivers =
     (osConfig ? services)
@@ -50,18 +49,6 @@ inputs: {
   bindingsLua = ''
     -- Generated from omarchy.quick_app_bindings. Edit your nix config, not here.
     ${lib.concatMapStringsSep "\n" mkBind cfg.quick_app_bindings}
-  '';
-
-  # Theme border colours from the active base16 scheme (keeps omarchy-nix's
-  # build-time theming; overrides the framework's default gradient borders).
-  looknfeelLua = ''
-    -- Generated from the active theme palette.
-    hl.config({
-      general = {
-        ["col.active_border"] = "rgba(${palette.base0D}ff)",
-        ["col.inactive_border"] = "rgba(${palette.base09}aa)",
-      },
-    })
   '';
 
   envEntries =
@@ -296,7 +283,6 @@ inputs: {
     require("hypr.input")
     require("hypr.envs")
     require("hypr.bindings")
-    require("hypr.looknfeel")
     require("hypr.autostart")
 
     -- Your personal HM config (settings/extraConfig) translated to Lua, loaded
@@ -329,7 +315,6 @@ in {
   xdg.configFile = {
     "hypr/hyprland.lua".text = hyprlandLua;
     "hypr/bindings.lua".text = bindingsLua;
-    "hypr/looknfeel.lua".text = looknfeelLua;
     "hypr/envs.lua".text = envsLua;
     "hypr/input.lua".text = inputLua;
     "hypr/autostart.lua".text = autostartLua;
