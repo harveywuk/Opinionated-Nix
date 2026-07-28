@@ -38,6 +38,8 @@ lib: {
         "retro-82"
         "lumon"
         "lupine"
+        "solitude"
+        "last-horizon"
       ];
       default = "tokyo-night";
       description = "Theme to use for Omarchy configuration";

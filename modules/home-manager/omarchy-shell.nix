@@ -52,7 +52,11 @@ in {
         PATH="${lib.makeBinPath [
           quickshellPkg
           pkgs.procps
-          pkgs.hyprland
+          # The flake's Hyprland, not pkgs.hyprland: this only needs hyprctl,
+          # and the nixpkgs build is a different derivation that nothing has
+          # cached — pulling it in compiles Hyprland and its whole hypr* dep
+          # chain from source just to get one binary.
+          inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland
           pkgs.coreutils
           pkgs.findutils
           pkgs.gnused

@@ -124,4 +124,16 @@
     vscode-theme = "Lupine";
     custom-scheme = true;
   };
+
+  "solitude" = {
+    base16-theme = "solitude";
+    vscode-theme = "Solitude";
+    custom-scheme = true;
+  };
+
+  "last-horizon" = {
+    base16-theme = "last-horizon";
+    vscode-theme = "Last Horizon";
+    custom-scheme = true;
+  };
 }

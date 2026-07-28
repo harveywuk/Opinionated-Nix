@@ -221,4 +221,50 @@
     base0E = "8a4ad7"; # Keywords (magenta)
     base0F = "013a6f"; # Deprecated (brown)
   };
+
+  # Derived from upstream themes/solitude/colors.toml (dark, near-monochrome).
+  solitude = {
+    slug = "solitude";
+    scheme = "Solitude";
+    author = "Omarchy (port by omarchy-nix)";
+    base00 = "101315"; # Default Background
+    base01 = "0c0e10"; # Lighter Background (dark_background)
+    base02 = "343d41"; # Selection Background
+    base03 = "4b4e55"; # Comments, Invisibles (muted)
+    base04 = "4b4e55"; # Dark Foreground
+    base05 = "cacccc"; # Default Foreground
+    base06 = "cbc2be"; # Light Foreground
+    base07 = "a5aeb4"; # Light Background (bright_foreground)
+    base08 = "565d60"; # Variables (red)
+    base09 = "de6145"; # Integers (bright_red — the one warm accent)
+    base0A = "d9dbdc"; # Classes (yellow)
+    base0B = "9fa5a9"; # Strings (green)
+    base0C = "707070"; # Regex (cyan)
+    base0D = "798186"; # Functions (blue / accent — active border)
+    base0E = "aeaeae"; # Keywords (magenta)
+    base0F = "5d6367"; # Deprecated (bright_blue)
+  };
+
+  # Derived from upstream themes/last-horizon/colors.toml (dark, warm/dusty).
+  last-horizon = {
+    slug = "last-horizon";
+    scheme = "Last Horizon";
+    author = "Omarchy (port by omarchy-nix)";
+    base00 = "0c0b0c"; # Default Background
+    base01 = "090809"; # Lighter Background (dark_background)
+    base02 = "584e51"; # Selection Background
+    base03 = "584e51"; # Comments, Invisibles (muted)
+    base04 = "584e51"; # Dark Foreground
+    base05 = "fafcfb"; # Default Foreground
+    base06 = "cfd3cd"; # Light Foreground
+    base07 = "e2dddc"; # Light Background (bright_foreground)
+    base08 = "c38b7b"; # Variables (red)
+    base09 = "c38b7b"; # Integers (orange)
+    base0A = "6b5e73"; # Classes (yellow)
+    base0B = "87a9b0"; # Strings (green)
+    base0C = "a5a0b6"; # Regex (cyan)
+    base0D = "b59790"; # Functions (blue / accent — active border)
+    base0E = "c4d8e2"; # Keywords (magenta)
+    base0F = "8a8588"; # Deprecated (border mid-tone)
+  };
 }
