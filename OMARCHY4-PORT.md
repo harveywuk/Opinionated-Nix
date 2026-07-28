@@ -1,15 +1,14 @@
 # Omarchy 4 port tracking
 
-Working doc for porting the next-major Omarchy to omarchy-nix. The work lives on
-the **`omarchy-4` branch of omarchy-nix**; `main` stays on the v3.8.x / `dev`
-line until v4 lands.
+Working doc for porting the next-major Omarchy to omarchy-nix. **The v4 work is
+on `main`** — the old `omarchy-4` working branch has been deleted. The pre-v4
+v3.8.x state is preserved on `archive/main-pre-v4`.
 
-## Upstream status (as of June 30, 2026)
+## Upstream status
 
-> **Upstream renamed the v4 branch `omarchy-4` → `quattro`.** The old `omarchy-4`
-> branch is frozen at `17f024d4` (June 7); active daily development moved to
-> **`quattro`**. Track `quattro`, NOT `omarchy-4`. (Our omarchy-nix *branch* is
-> still named `omarchy-4` — that's just our branch name, unrelated to upstream's.)
+> **Upstream renamed its v4 branch `omarchy-4` → `quattro`.** Upstream's
+> `omarchy-4` is frozen at `17f024d4` (June 7); active daily development is on
+> **`quattro`**. Sync against `quattro`, NOT `omarchy-4`.
 
 - **Branch**: `quattro` @ `4d93ad58` ("Register the Chromium native messaging hosts on fresh installs", ~2026-07-27) — **unreleased**, no `v4` tag, active daily.
 - **Scope**: ~1000 commits ahead of `dev`. There is a **4.0 milestone** (1 issue open). Only ~5 open PRs, all additive.

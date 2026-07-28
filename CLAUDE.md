@@ -170,7 +170,7 @@ When implementing features:
 - ✅ Updated btop settings for v1.4.6 (terminal_sync, cpu_watts, battery_watts, gpu_mirror, etc.)
 - ✅ Simplified waybar network tooltips (removed bandwidth stats)
 
-**Branch tracking**: `main` tracks the **`dev`** branch (currently `9cf1852` = v3.8.2 + 2 commits). Releases are cut to `master`/tags; new feature work lands on `dev` first. The **v4 port** (this `omarchy-4` branch of omarchy-nix) tracks upstream's **`quattro`** branch — the next major version, **renamed from `omarchy-4`** and where active daily development now happens (unreleased, still no `v4` tag; port baseline `4d93ad58`, July 27 2026). The old upstream `omarchy-4` branch is frozen at June 7; **do not sync against it — use `quattro`**. See `OMARCHY4-PORT.md` — that file, not this section, is the authoritative sync status for the v4 port. The "Omarchy Sync Status" section above tracks the `dev` line that `main` follows.
+**Branch tracking**: **`main` is the v4 line** and tracks upstream's **`quattro`** branch (port baseline `4d93ad58`, July 28 2026; unreleased, still no `v4` tag). The pre-v4 v3.8.x state is kept on `archive/main-pre-v4`; the old `omarchy-4` working branch is gone — do not recreate it, `main` is where v4 lives. Upstream's own `omarchy-4` branch is frozen at June 7; **do not sync against it — use `quattro`**. `OMARCHY4-PORT.md` is the authoritative sync status; the "Omarchy Sync Status" section above documents the older `dev`-line history.
 
 **To check current Omarchy status**:
 ```bash
