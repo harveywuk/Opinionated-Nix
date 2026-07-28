@@ -122,6 +122,16 @@ in {
     OMARCHY_PATH = "$HOME/.local/share/omarchy";
   };
 
+  # Upstream ships bin/ in /usr/bin; here it's under $HOME and home.sessionPath
+  # only reaches interactive shells. Add it in /etc/profile so `bash -l`
+  # (omarchy-shell menu actions, SSH) finds omarchy-* too.
+  environment.extraInit = ''
+    case ":$PATH:" in
+      *":$HOME/.local/share/omarchy/bin:"*) ;;
+      *) export PATH="$HOME/.local/share/omarchy/bin:$PATH" ;;
+    esac
+  '';
+
   # Raise soft fd limit (omarchy install/config/increase-fd-limit.sh equivalent)
   systemd.settings.Manager.DefaultLimitNOFILESoft = 65536;
 

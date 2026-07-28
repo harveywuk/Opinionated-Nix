@@ -48,14 +48,16 @@ in {
       # it also collapses any accidental duplicate instances. Best-effort: a
       # headless/pre-login switch (no running shell) must not fail activation.
       onChange = ''
+        # home-manager-mike.service has no XDG_RUNTIME_DIR (and sets
+        # QT_QPA_PLATFORM=offscreen), so quickshell kill finds no instance
+        # sockets and the old shell silently survives the switch.
+        export XDG_RUNTIME_DIR="''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+        unset QT_QPA_PLATFORM
         OMARCHY_PATH="$HOME/.local/share/omarchy" \
         PATH="${lib.makeBinPath [
           quickshellPkg
           pkgs.procps
-          # The flake's Hyprland, not pkgs.hyprland: this only needs hyprctl,
-          # and the nixpkgs build is a different derivation that nothing has
-          # cached — pulling it in compiles Hyprland and its whole hypr* dep
-          # chain from source just to get one binary.
+          # flake's hyprland (for hyprctl) — pkgs.hyprland would be a second, uncached build
           inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland
           pkgs.coreutils
           pkgs.findutils

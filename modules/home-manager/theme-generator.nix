@@ -57,21 +57,16 @@ in {
     fi
 
     if [ -e "$THEME_LINK" ] && [ ! -L "$THEME_LINK" ]; then
-      # omarchy-theme-set replaces current/theme with a *directory* of per-file
-      # symlinks pointing into whichever home-manager generation was current when
-      # it last ran. A switch leaves those pointing at the previous generation:
-      # stale colours now, dangling links after a GC. Re-apply so they follow the
-      # new generation and the shell (which reads shell.toml with
-      # watchChanges:false) hot-reloads. Best-effort — activation also runs
-      # pre-login, where there's no session to talk to.
+      # omarchy-theme-set turned current/theme into a directory of symlinks into
+      # the generation current at the time. Re-apply after a switch so they track
+      # the new generation and the shell hot-reloads. Best-effort (no session
+      # pre-login).
       $DRY_RUN_CMD env \
         OMARCHY_PATH="$HOME/.local/share/omarchy" \
         PATH="$HOME/.local/share/omarchy/bin:$PATH" \
         omarchy-theme-set "$THEME" >/dev/null 2>&1 || true
     else
-      # Fresh install: a plain symlink tracks the generation on its own. Note
-      # `ln -sf` onto an existing directory would drop a stray link inside it,
-      # which is why the directory case above is handled separately.
+      # Fresh install: plain symlink tracks the generation on its own.
       $DRY_RUN_CMD ln -sfn "$HOME/.config/omarchy/themes/$THEME" "$THEME_LINK"
     fi
   '';

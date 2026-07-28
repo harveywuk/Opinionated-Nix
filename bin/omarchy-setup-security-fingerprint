@@ -4,13 +4,9 @@
 
 set -e
 
-# Nix deviation: upstream installs libfprint/fprintd with pacman and sed-edits
-# /etc/pam.d/{sudo,polkit-1} plus writes /etc/pam.d/omarchy-lock-fingerprint.
-# Both are declarative here — set omarchy.fido2_auth.fingerprint_support = true
-# and rebuild; modules/nixos/fido2.nix enables services.fprintd and adds the PAM
-# stacks (including the clamshell gate that skips the reader when the lid is
-# shut). This script is therefore enrolment-only. Editing /etc/pam.d on NixOS
-# would be overwritten on the next rebuild and can lock you out of sudo.
+# Nix deviation: enrolment-only. Packages and PAM (incl. the clamshell gate)
+# are declarative via omarchy.fido2_auth.fingerprint_support in fido2.nix;
+# sed-editing /etc/pam.d here would be overwritten on rebuild.
 
 echo -e "\e[32mSetting up fingerprint scanner for authentication.\n\e[0m"
 

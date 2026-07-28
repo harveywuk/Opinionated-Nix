@@ -3,10 +3,8 @@
   pkgs,
   ...
 }: {
-  # Upstream symlinks the current theme's btop.theme in as "current" and sets
-  # color_theme = "current" (install/user/theme.sh), so btop follows a runtime
-  # theme switch. Previously this file was generated from the base16 palette,
-  # which diverged from the theme's own colors.
+  # Matches upstream install/user/theme.sh: theme's btop.theme linked in as
+  # "current" so btop follows runtime theme switches.
   home.file.".config/btop/themes/current.theme".source =
     config.lib.file.mkOutOfStoreSymlink
     "${config.home.homeDirectory}/.local/state/omarchy/current/theme/btop.theme";

@@ -53,11 +53,7 @@ in {
       # polkit/background all live in omarchy-shell; quickshell itself is added by
       # modules/home-manager/omarchy-shell.nix).
       glib # gsettings, used by omarchy-theme-set-gnome for the GTK light/dark theme
-      # `magick` (upstream install/omarchy-base.packages). Without it
-      # omarchy-menu-images generates no thumbnails, so the theme/background
-      # pickers come up empty; also used by omarchy-bar-text-color,
-      # omarchy-transcode{,-ascii} and omarchy-plymouth-{preview,set}.
-      imagemagick
+      imagemagick # thumbnails for omarchy-menu-images (theme/background pickers), transcode, bar-text-color
       udiskie # automount removable drives (upstream autostart)
       fcitx5 # input method (upstream autostart: fcitx5 --disable notificationitem)
       fcitx5-gtk
