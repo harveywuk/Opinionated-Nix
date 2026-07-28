@@ -52,6 +52,7 @@ in {
       # Omarchy 4 desktop shell deps (bar/launcher/menu/notifications/osd/lock/
       # polkit/background all live in omarchy-shell; quickshell itself is added by
       # modules/home-manager/omarchy-shell.nix).
+      glib # gsettings, used by omarchy-theme-set-gnome for the GTK light/dark theme
       udiskie # automount removable drives (upstream autostart)
       fcitx5 # input method (upstream autostart: fcitx5 --disable notificationitem)
       fcitx5-gtk

@@ -41,14 +41,38 @@ in {
 
   # Create initial symlink to current theme
   home.activation.omarchy-theme-symlink = lib.hm.dag.entryAfter ["writeBoundary"] ''
-    THEME_SYMLINK="$HOME/.local/state/omarchy/current/theme"
-    CURRENT_THEME="${config.omarchy.theme}"
+    STATE="$HOME/.local/state/omarchy/current"
+    THEME_LINK="$STATE/theme"
 
-    mkdir -p "$(dirname "$THEME_SYMLINK")"
+    mkdir -p "$STATE"
 
-    # Only create symlink if it doesn't exist (don't override user's selection)
-    if [[ ! -L "$THEME_SYMLINK" ]]; then
-      $DRY_RUN_CMD ln -sf "$HOME/.config/omarchy/themes/$CURRENT_THEME" "$THEME_SYMLINK"
+    # The runtime selection wins over the build-time default, so a rebuild
+    # doesn't silently revert a theme picked with omarchy-theme-set.
+    THEME="${config.omarchy.theme}"
+    if [ -r "$STATE/theme.name" ]; then
+      THEME="$(cat "$STATE/theme.name")"
+    fi
+    if [ ! -d "$HOME/.config/omarchy/themes/$THEME" ]; then
+      THEME="${config.omarchy.theme}"
+    fi
+
+    if [ -e "$THEME_LINK" ] && [ ! -L "$THEME_LINK" ]; then
+      # omarchy-theme-set replaces current/theme with a *directory* of per-file
+      # symlinks pointing into whichever home-manager generation was current when
+      # it last ran. A switch leaves those pointing at the previous generation:
+      # stale colours now, dangling links after a GC. Re-apply so they follow the
+      # new generation and the shell (which reads shell.toml with
+      # watchChanges:false) hot-reloads. Best-effort — activation also runs
+      # pre-login, where there's no session to talk to.
+      $DRY_RUN_CMD env \
+        OMARCHY_PATH="$HOME/.local/share/omarchy" \
+        PATH="$HOME/.local/share/omarchy/bin:$PATH" \
+        omarchy-theme-set "$THEME" >/dev/null 2>&1 || true
+    else
+      # Fresh install: a plain symlink tracks the generation on its own. Note
+      # `ln -sf` onto an existing directory would drop a stray link inside it,
+      # which is why the directory case above is handled separately.
+      $DRY_RUN_CMD ln -sfn "$HOME/.config/omarchy/themes/$THEME" "$THEME_LINK"
     fi
   '';
 }
