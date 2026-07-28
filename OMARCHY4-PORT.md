@@ -60,7 +60,7 @@ Nix-generated read-only files — view-only by design; edits belong in
 nixos-config / HM settings (the `hm.lua` bridge loads last and overrides).
 
 ## Known follow-ups (quattro)
-- **`solitude` and `last-horizon` are still unported.** Both exist upstream (they predate the July 5 baseline) but have no `config/themes/` dir, base16 scheme, or `config.nix` enum entry here. Now cheap to add — render them the same way Lupine was.
+- ~~`solitude` and `last-horizon` unported~~ — done (commit `00ec53de`), rendered the same way as Lupine.
 - **Arch lifecycle scripts remain vendored verbatim** and are Arch-only in practice: `omarchy-update*`, `omarchy-channel-*`, `omarchy-migrate*`, `omarchy-dev-*`, `omarchy-setup-system`, `omarchy-upgrade-to-quattro`, `omarchy-remove-launcher-entry` (uses `pacman -Qqo`). Kept for name parity; `nixos-rebuild` is the real path.
 - **`omarchy-setup-lock` not vendored** — it writes `/etc/pam.d/omarchy-lock-password`, which `modules/nixos/system.nix` already provides declaratively.
 - **Window-border theming is build-time only.** Runtime theme switches recolor foot/terminals + shell, but not Hyprland borders (our generated `hypr.looknfeel` sets borders from the build-time base16; quattro loads `require_optional("omarchy.current.theme.hyprland")`). To make borders follow runtime switches, generate a per-theme `hyprland.lua` (border colors) into each theme dir and stop hard-setting borders in `hypr.looknfeel`.
