@@ -17,7 +17,22 @@ inputs: {
   # runCommand copies the tree to a store path of real files; the single symlink
   # lets `find -type f` see them. (lua framework under default/hypr is fine as
   # per-file symlinks because lua require() follows symlinks.)
-  shellTree = pkgs.runCommand "omarchy-shell-tree" {} ''cp -r ${../../shell} $out'';
+
+  # Upstream's workspace widget hard-codes the 1-10 range Omarchy binds. Patch
+  # that ceiling here rather than forking the QML, so the vendored tree stays a
+  # byte-for-byte copy of upstream at the default and re-vendoring is a plain
+  # overwrite. Only rewrites the file when the count actually differs.
+  workspaceCount = config.omarchy.shell.workspace_count;
+  patchWorkspaces = lib.optionalString (workspaceCount != 10) ''
+    substituteInPlace $out/plugins/bar/widgets/Workspaces.qml \
+      --replace-fail 'id <= 10' 'id <= ${toString workspaceCount}'
+  '';
+
+  shellTree = pkgs.runCommand "omarchy-shell-tree" {} ''
+    cp -r ${../../shell} $out
+    chmod -R u+w $out
+    ${patchWorkspaces}
+  '';
 in {
   # Omarchy 4 desktop shell. The whole desktop is a single long-running
   # Quickshell instance (omarchy-shell) that hosts the bar, launcher, menu,
@@ -48,7 +63,7 @@ in {
       # it also collapses any accidental duplicate instances. Best-effort: a
       # headless/pre-login switch (no running shell) must not fail activation.
       onChange = ''
-        # home-manager-mike.service has no XDG_RUNTIME_DIR (and sets
+        # home-manager-<user>.service has no XDG_RUNTIME_DIR (and sets
         # QT_QPA_PLATFORM=offscreen), so quickshell kill finds no instance
         # sockets and the old shell silently survives the switch.
         export XDG_RUNTIME_DIR="''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"

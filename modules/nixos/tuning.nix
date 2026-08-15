@@ -50,6 +50,39 @@
     InhibitDelayMaxSec=15
   '';
 
+  # An OOM daemon between "memory is tight" and "processes die at random".
+  # systemd-oomd keys on PSI stall time, so it acts while the machine is still
+  # thrashing instead of after an allocation already failed. 50% means half of a
+  # ten-second window spent stalled on reclaim; held 20s the desktop is already
+  # unusable and losing one app is the cheaper outcome.
+  # (quattro etc/systemd/oomd.conf.d/10-omarchy.conf)
+  systemd.oomd = {
+    enable = lib.mkDefault true;
+    settings.OOM = {
+      DefaultMemoryPressureDurationSec = "20s";
+      DefaultMemoryPressureLimit = "50%";
+    };
+    # Which cgroups are eligible is set on app.slice in the user manager (below),
+    # so the compositor — which runs in session.slice — is structurally
+    # ineligible: oomd takes the browser or terminal that caused the pressure and
+    # the session survives to show the notification. NixOS' own enableUserSlices
+    # would put the whole user slice, compositor included, back in the pool.
+    enableRootSlice = false;
+    enableSystemSlice = false;
+    enableUserSlices = false;
+  };
+
+  # quattro default/systemd/user/app.slice.d/10-oomd.conf. Swap kill is the
+  # backstop for the slower shape of the same problem, where swap fills before
+  # pressure spikes; it uses the global SwapUsedLimit.
+  systemd.user.slices."app" = {
+    overrideStrategy = "asDropin";
+    sliceConfig = {
+      ManagedOOMMemoryPressure = "kill";
+      ManagedOOMSwap = "kill";
+    };
+  };
+
   # Keep Wi-Fi power save off: it trades 20-300ms latency spikes on idle links
   # for a fraction of a watt, and broken firmware (Intel BE200/BE211) drops the
   # link outright when it naps.

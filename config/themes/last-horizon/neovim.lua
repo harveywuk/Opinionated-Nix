@@ -1,36 +1,47 @@
 return {
   {
     "bjarneo/aether.nvim",
-    branch = "v2",
+    branch = "v3",
     name = "aether",
     priority = 1000,
     opts = {
-      transparent = false,
       colors = {
-  bg           = "#0c0b0c",
-  bg_dark      = "#0c0b0c",
-  bg_highlight = "#716661",     -- still only change to bg_highlight
+        bg = "#0c0b0c",
+        dark_bg = "#090809",
+        darker_bg = "#060606",
+        lighter_bg = "#0c0b0c",
 
-  -- Foregrounds
-  fg           = "#f1f1ef",
-  fg_dark      = "#e0dbd9",
-  comment      = "#94918c",
+        fg = "#FAFCFB",
+        dark_fg = "#584e51",
+        light_fg = "#cfd3cd",
+        bright_fg = "#e2dddc",
+        muted = "#584e51",
 
-  red          = "#e36a58",
-  orange       = "#c38d72",
-  yellow       = "#c8a88a",
-  green        = "#a4dded",
-  cyan         = "#725379",
-  blue         = "#4691a1",
-  purple       = "#c9a3c9",
-  magenta      = "#b9a0d1",
+        red = "#c38b7b",
+        yellow = "#6B5E73",
+        orange = "#6B5E73",
+        green = "#87a9b0",
+        cyan = "#a5a0b6",
+        blue = "#b59790",
+        magenta = "#c4d8e2",
+        brown = "#362f3a",
+
+        bright_red = "#c38b7b",
+        bright_yellow = "#6B5E73",
+        bright_green = "#87a9b0",
+        bright_cyan = "#a5a0b6",
+        bright_blue = "#b59790",
+        bright_magenta = "#c4d8e2",
+
+        accent = "#b59790",
+        cursor = "#e2dddc",
+        foreground = "#FAFCFB",
+        background = "#0c0b0c",
+        selection = "#584e51",
+        selection_foreground = "#e2dddc",
+        selection_background = "#584e51",
       },
     },
-    config = function(_, opts)
-      require("aether").setup(opts)
-      vim.cmd.colorscheme("aether")
-      require("aether.hotreload").setup()
-    end,
   },
   {
     "LazyVim/LazyVim",

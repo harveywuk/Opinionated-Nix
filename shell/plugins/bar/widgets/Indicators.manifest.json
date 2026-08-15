@@ -27,11 +27,6 @@
         "emptyText": "No indicators",
         "options": [
           {
-            "value": "TmuxAlert",
-            "label": "Tmux alert",
-            "description": "Tmux windows waiting for attention"
-          },
-          {
             "value": "Dictation",
             "label": "Dictation",
             "description": "Voice typing status"
@@ -69,6 +64,14 @@
         "label": "Always Show",
         "description": "Show inactive indicators without waiting for hover.",
         "defaultValue": false
+      }
+    ]
+  },
+  "omarchy": {
+    "clonePaths": [
+      {
+        "source": "../indicators",
+        "target": "indicators"
       }
     ]
   }

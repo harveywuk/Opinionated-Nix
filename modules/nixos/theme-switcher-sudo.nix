@@ -23,5 +23,25 @@ in {
         }
       ];
     }
+    # Setup > Timezone picks a zone without a password prompt.
+    # Mirrors etc/sudoers.d/omarchy-tzupdate. quattro dropped the NOPASSWD on
+    # tzupdate itself (it took a URL and ran as root); only the timedatectl call
+    # is passwordless now.
+    {
+      groups = ["wheel"];
+      runAs = "root";
+      commands = [
+        {
+          command = "/run/current-system/sw/bin/timedatectl set-timezone *";
+          options = ["NOPASSWD"];
+        }
+      ];
+    }
   ];
+
+  # Mirrors etc/sudoers.d/omarchy-passwd-tries: three tries is easy to burn on a
+  # long passphrase typed into a lock screen prompt.
+  security.sudo.extraConfig = ''
+    Defaults passwd_tries=10
+  '';
 }

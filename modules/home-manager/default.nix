@@ -117,6 +117,12 @@ in {
       recursive = true;
     };
     ".local/share/omarchy/version".source = ../../default/omarchy-version;
+    # Agent skills. omarchy-agent-crash reads diagnose-crash/SKILL.md from here,
+    # and the omarchy skill is linked into every agent's skills dir below.
+    ".local/share/omarchy/default/agents" = {
+      source = ../../default/agents;
+      recursive = true;
+    };
     # Emoji compose sequences included from the seeded ~/.XCompose.
     ".local/share/omarchy/default/xcompose".source = ../../default/xcompose;
     ".local/share/omarchy/default/hypr" = {
@@ -272,6 +278,88 @@ in {
       ExecStart = "%h/.local/share/omarchy/bin/omarchy-hw-recover-internal-monitor";
     };
     Install.WantedBy = ["graphical-session-pre.target"];
+  };
+
+  # Agent skill symlinks. Upstream does this in omarchy-provision-user, which is
+  # part of the Arch installer's one-shot user setup and never runs on Nix.
+  # Symlinks (not home.file) because every agent expects a real directory it can
+  # walk, and the loop picks up new skills without an edit here.
+  home.activation.linkOmarchyAgentSkills = lib.hm.dag.entryAfter ["writeBoundary"] ''
+    $DRY_RUN_CMD mkdir -p "$HOME/.agents/skills" "$HOME/.claude/skills" "$HOME/.codex/skills" "$HOME/.pi/agent/skills"
+    for skill in "$HOME"/.local/share/omarchy/default/agents/skills/*/; do
+      [ -d "$skill" ] || continue
+      skill=''${skill%/}
+      name=''${skill##*/}
+      for dir in "$HOME/.agents/skills" "$HOME/.claude/skills" "$HOME/.codex/skills" "$HOME/.pi/agent/skills"; do
+        $DRY_RUN_CMD ln -sfn "$skill" "$dir/$name"
+      done
+    done
+  '';
+
+  # Lock the session before suspend. Mirrors upstream
+  # default/systemd/user/omarchy-sleep-lock.service; the monitor holds a delay
+  # inhibitor (see modules/nixos/tuning.nix InhibitDelayMaxSec) and locks in it.
+  systemd.user.services.omarchy-sleep-lock = {
+    Unit = {
+      Description = "Lock Omarchy before suspend";
+      After = ["dbus.socket" "wayland-session-waitenv.service"];
+      Requires = ["dbus.socket"];
+      PartOf = ["graphical-session.target"];
+      ConditionEnvironment = ["OMARCHY_PATH" "WAYLAND_DISPLAY"];
+    };
+    Service = {
+      Type = "simple";
+      ExecStart = "%h/.local/share/omarchy/bin/omarchy-system-sleep-monitor";
+      Restart = "always";
+      RestartSec = 2;
+    };
+    Install.WantedBy = ["graphical-session.target"];
+  };
+
+  # fcitx5 turns the CapsLock compose sequences in ~/.XCompose into text for
+  # Wayland clients. quattro moved it out of the Hyprland autostart into a user
+  # unit (default/systemd/user/omarchy-fcitx5.service).
+  systemd.user.services.omarchy-fcitx5 = {
+    Unit = {
+      Description = "Fcitx5 input method (XCompose sequences)";
+      After = ["graphical-session.target"];
+      PartOf = ["graphical-session.target"];
+      # Ordering alone does not stop an SSH session's user manager from starting
+      # this; without WAYLAND_DISPLAY fcitx5 comes up unable to reach any client
+      # and then blocks the real one at graphical login.
+      ConditionEnvironment = "WAYLAND_DISPLAY";
+    };
+    Service = {
+      Type = "simple";
+      # notificationitem duplicates the tray entry omarchy renders itself.
+      ExecStart = "${pkgs.fcitx5}/bin/fcitx5 --disable notificationitem";
+      # always, not on-failure: fcitx5 exits 0 when another instance owns its bus
+      # name, and a clean exit still leaves the user with no input method.
+      Restart = "always";
+      RestartSec = 2;
+    };
+    Install.WantedBy = ["graphical-session.target"];
+  };
+
+  # Announce process crashes and offer an AI diagnosis
+  # (default/systemd/user/omarchy-crash-watch.service).
+  systemd.user.services.omarchy-crash-watch = {
+    Unit = {
+      Description = "Announce process crashes and offer an AI diagnosis";
+      After = ["graphical-session.target"];
+      PartOf = ["graphical-session.target"];
+      ConditionEnvironment = "WAYLAND_DISPLAY";
+      # Set by omarchy-toggle-crash-capture, so a disabled watcher stays disabled
+      # across logins without the unit itself being disabled.
+      ConditionPathExists = "!%h/.local/state/omarchy/toggles/crash-capture-off";
+    };
+    Service = {
+      Type = "simple";
+      ExecStart = "%h/.local/share/omarchy/bin/omarchy-crash-watch";
+      Restart = "always";
+      RestartSec = 5;
+    };
+    Install.WantedBy = ["graphical-session.target"];
   };
 
   # XDG user directories (omarchy install/config/user-dirs.sh equivalent)

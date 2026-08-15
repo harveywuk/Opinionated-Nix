@@ -26,6 +26,9 @@ Item {
   property int launchSerial: 0
   property int launchToplevelCount: 0
   property var launchActiveToplevel: null
+  // True while the launch OSD is on screen. It outlives the launch that opened
+  // it: the OSD shows with duration 0, so only closeLaunchFeedback() takes it
+  // down.
   property bool launchOsdOpen: false
   property string launchOsdMessage: ""
 
@@ -75,7 +78,11 @@ Item {
     var id = String(desktopId || "")
     if (!id) return
     root.beginLaunchFeedback(name)
-    Util.execDetached("gtk-launch " + Util.shellQuote(id))
+    // Start gtk-launch inside a scope under app-graphical.slice so apps do not
+    // inherit wayland-wm@.service. Keeping gtk-launch as the desktop-entry
+    // resolver supports IDs with spaces and entries that UWSM rejects.
+    // Keep the .desktop suffix or ids like org.telegram.desktop won't resolve.
+    Util.execDetached("uwsm-app -- gtk-launch " + Util.shellQuote(id + ".desktop"))
   }
 
   function remove(desktopId, name) {
@@ -154,7 +161,6 @@ Item {
     root.launchSerial++
     root.launchToplevelCount = root.toplevelCount()
     root.launchActiveToplevel = ToplevelManager.activeToplevel
-    root.launchOsdOpen = false
     root.launchOsdMessage = "Launching " + String(name || "application") + "…"
     launchDelay.restart()
     launchTimeout.restart()
@@ -181,9 +187,13 @@ Item {
     property string text: ""
   }
 
+  // Both scans must run in non-login shells. A login shell sources the user's
+  // profile, and tools like mise touch ~/.local/share on activation — a
+  // directory the desktop-entry watcher monitors — so every scan would
+  // trigger the next one, pinning a core at idle.
   Process {
     id: hiddenEntryScan
-    command: ["bash", "-lc", root.hiddenEntryScanCommand()]
+    command: ["bash", "-c", root.hiddenEntryScanCommand()]
     stdout: SplitParser { onRead: function(line) { hiddenEntryOutput.text += line + "\n" } }
     onStarted: hiddenEntryOutput.text = ""
     onExited: root.loadDesktopHiddenEntries(hiddenEntryOutput.text)
@@ -191,7 +201,7 @@ Item {
 
   Process {
     id: iconIndexScan
-    command: ["bash", "-lc", root.iconIndexScanCommand()]
+    command: ["bash", "-c", root.iconIndexScanCommand()]
     stdout: SplitParser { onRead: function(line) { root.indexIconLine(line) } }
     onStarted: root.pendingIconIndex = ({})
     // Swapping the property re-evaluates every iconSource() binding, so

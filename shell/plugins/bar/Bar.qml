@@ -1,4 +1,5 @@
 import Quickshell
+import Quickshell.Hyprland
 import Quickshell.Io
 import Quickshell.Wayland
 import QtQuick
@@ -26,8 +27,8 @@ Item {
   // diagnostics; the built-in bar does not otherwise need it.
   property var manifest: null
   // Mirrors the on-disk `bar-off` flag so the user can hide the bar without
-  // killing the entire shell. Wired to BarPanel.visible below; updated by the
-  // FileView watcher further down.
+  // killing the entire shell. Hidden panels stay mapped but park off-screen
+  // without an exclusion zone; updated by the FileView watcher further down.
   property bool barHidden: false
   property string home: Quickshell.env("HOME")
   property string stateHome: home + "/.local/state"
@@ -44,6 +45,13 @@ Item {
   property bool useTransparentForeground: false
   property bool transparent: false
   property bool centerSectionHovered: false
+  // One bar surface exists per monitor and each reports into this count, so a
+  // pointer crossing from one monitor's bar to another's stays counted however
+  // the enter and leave interleave. A single shared bool would be left false by
+  // whichever event landed last.
+  property int barHoverCount: 0
+  // True while the pointer is over any bar, widgets included.
+  readonly property bool barHovered: barHoverCount > 0
   property bool centerSectionRevealHeld: false
   property bool centerHoverRevealSuppressed: false
   property int barConfigSerial: 0
@@ -75,6 +83,7 @@ Item {
   property var activePopout: null
   property var barDragSource: null
   property var barDragTarget: null
+  property var barDragTargetGeometry: null
   property bool barDragAfter: false
   property var barDragWindow: null
   property var barDragScreen: null
@@ -180,6 +189,7 @@ Item {
     barDragScreen = null
     barDragImageUrl = ""
     barDragTarget = null
+    barDragTargetGeometry = null
     barDragAfter = false
     barDragSceneX = 0
     barDragSceneY = 0
@@ -204,6 +214,33 @@ Item {
 
   function barDragScreenPoint(scenePoint) {
     return windowScreenPoint(scenePoint, barDragWindow)
+  }
+
+  function dropMarkerRect(slot, after) {
+    if (!slot) return null
+
+    try {
+      var slotPoint = slot.mapToItem(null, 0, 0)
+      var screenPoint = barDragScreenPoint(slotPoint)
+      var thickness = Style.spacing.xs
+      if (vertical) {
+        return {
+          x: screenPoint.x,
+          y: screenPoint.y + (after ? slot.height : 0) - thickness / 2,
+          width: slot.width,
+          height: thickness
+        }
+      }
+
+      return {
+        x: screenPoint.x + (after ? slot.width : 0) - thickness / 2,
+        y: screenPoint.y,
+        width: thickness,
+        height: slot.height
+      }
+    } catch (e) {
+      return null
+    }
   }
 
   // Split the screen along its diagonals (in normalized space, so widescreens
@@ -321,8 +358,33 @@ Item {
     position = normalizePosition(config.position)
     setRequestedTransparency(config.transparent === true)
     centerAnchor = Util.canonicalWidgetId(config.centerAnchor || "")
-    layoutConfig = normalizeLayout(config.layout)
+
+    // layoutEntries feeds plain JS arrays to the module Repeaters, and QML
+    // cannot diff those: reassigning layoutConfig rebuilds every widget on
+    // every monitor. When a shell.json write only changed inline widget
+    // settings, patch the live layout and running widgets in place instead.
+    var next = normalizeLayout(config.layout)
+    var delta = BarModel.inlineSettingsDelta(layoutConfig, next)
+    if (delta) {
+      applySettingsDelta(delta)
+      return
+    }
+    layoutConfig = next
     barConfigSerial++
+  }
+
+  function applySettingsDelta(delta) {
+    for (var i = 0; i < delta.length; i++) {
+      var change = delta[i]
+      layoutConfig[change.region][change.index] = change.entry
+      var settings = entrySettings(change.entry)
+      for (var s = 0; s < moduleSlots.length; s++) {
+        var slot = moduleSlots[s]
+        if (!slot || slot.region !== change.region || slot.moduleName !== entryId(change.entry)) continue
+        var item = slot.activeItem
+        if (item && "settings" in item) item.settings = settings
+      }
+    }
   }
 
   onBarConfigChanged: applyBarConfig()
@@ -333,7 +395,10 @@ Item {
     return Array.isArray(entries) ? entries : []
   }
 
-  function panelNavigationSlots(region) {
+  // Tab order for the panels in one bar region. Scoped to a single bar surface
+  // so tabbing walks the bar the open panel belongs to instead of hopping the
+  // panel to another monitor's copy of the same widget.
+  function panelNavigationSlots(region, window) {
     var entries = layoutEntries(region)
     var slots = []
     for (var i = 0; i < entries.length; i++) {
@@ -341,6 +406,7 @@ Item {
       for (var j = 0; j < moduleSlots.length; j++) {
         var slot = moduleSlots[j]
         if (!slot || slot.region !== region || slot.moduleName !== id) continue
+        if (window && !sameWindow(slotWindow(slot), window)) continue
         var item = slot.activeItem
         if (!item || item.visible !== true || slot.visible !== true || slot.width <= 0 || slot.height <= 0) continue
         if (typeof item.open !== "function" || typeof item.close !== "function" || item.opened === undefined) continue
@@ -349,6 +415,21 @@ Item {
       }
     }
     return slots
+  }
+
+  // The Nth panel in a bar region, counted the way the bar reads: layout order,
+  // and only the panels actually on screen. A widget with no panel (the tray)
+  // and one that is hiding itself are passed over, so the number lands on the
+  // Nth panel icon the user can see rather than the Nth layout entry.
+  // One-based, because it exists for hotkeys; anything else lands on no slot.
+  //
+  // Counting any bar surface is enough: every monitor lays its bar out from the
+  // one layout, and summoning the id routes through pickPanelSlot, which opens
+  // the focused monitor's copy whichever surface was counted.
+  function panelWidgetIdAt(region, index) {
+    var slots = panelNavigationSlots(String(region || ""), null)
+    var slot = slots[Math.round(Number(index)) - 1]
+    return slot ? String(slot.moduleName || "") : ""
   }
 
   function switchPanelFrom(owner, direction) {
@@ -364,7 +445,7 @@ Item {
     }
     if (!currentSlot) return false
 
-    var slots = panelNavigationSlots(currentSlot.region)
+    var slots = panelNavigationSlots(currentSlot.region, slotWindow(currentSlot))
     if (slots.length < 2) return false
 
     var currentIndex = -1
@@ -398,6 +479,19 @@ Item {
     return items
   }
 
+  function slotScreenName(slot) {
+    var window = slotWindow(slot)
+    return window && window.screen ? String(window.screen.name || "") : ""
+  }
+
+  // The output Hyprland has focused, which is where a keyboard-summoned panel
+  // belongs. Empty until Hyprland reports one, which leaves panel routing on
+  // its per-monitor fallback rather than guessing at an output.
+  function focusedScreenName() {
+    var monitor = Hyprland.focusedMonitor
+    return monitor ? String(monitor.name || "") : ""
+  }
+
   // Resolve the live bar-widget instance for a plugin id (e.g. "omarchy.bluetooth").
   // Only widgets that expose popup open/close methods count; plain indicators
   // (clock, workspaces, tray) return null. Used by shell.summon/toggle so
@@ -413,11 +507,11 @@ Item {
       if (slot.moduleName !== id) continue
       var item = slot.activeItem
       if (typeof item.open !== "function" || typeof item.close !== "function" || item.opened === undefined) continue
-      candidates.push(slot)
+      candidates.push({ slot: slot, screenName: slotScreenName(slot), opened: item.opened === true })
     }
-    // Anchored center modules are mounted twice; only the drawn copy can
-    // anchor a popup or carry the open-panel mark. See BarModel.pickDrawnSlot.
-    var chosen = BarModel.pickDrawnSlot(candidates)
+    // One copy per monitor, plus a zero-size placeholder for anchored center
+    // modules. See BarModel.pickPanelSlot for which one a hotkey acts on.
+    var chosen = BarModel.pickPanelSlot(candidates, focusedScreenName())
     return chosen ? chosen.activeItem : null
   }
 
@@ -487,6 +581,9 @@ Item {
 
   Component.onCompleted: applyBarConfig()
 
+  // Revealing the indicators widens their section, which can slide a neighbour
+  // under a stationary pointer. Collapsing on that un-hover would move it back
+  // out and re-open the peek, so hold until the pointer leaves the bar.
   function setCenterSectionHovered(hovered) {
     centerSectionHovered = hovered
     if (hovered) {
@@ -497,10 +594,18 @@ Item {
     }
   }
 
+  function setBarHovered(hovered) {
+    barHoverCount = Math.max(0, barHoverCount + (hovered ? 1 : -1))
+    if (barHoverCount === 0) centerSectionRevealTimer.restart()
+  }
+
   Timer {
     id: centerSectionRevealTimer
     interval: 120
-    onTriggered: root.centerSectionRevealHeld = root.centerSectionHovered
+    // Collapse only. Opening the peek is the center section's own gesture, done
+    // in setCenterSectionHovered, so a timer left pending by a pointer that dipped
+    // off the bar and came back cannot reveal indicators it never pointed at.
+    onTriggered: if (!root.centerSectionHovered && !root.barHovered) root.centerSectionRevealHeld = false
   }
 
   function run(command) {
@@ -577,6 +682,14 @@ Item {
 
   function moduleDropAtScene(scenePoint, sourceSlot) {
     var sourceWindow = root.slotWindow(sourceSlot) || root.barDragWindow
+    if (sourceWindow && sourceWindow.contentItem) {
+      var barPoint = sourceWindow.contentItem.mapFromItem(null, scenePoint.x, scenePoint.y)
+      if (barPoint.x < 0 || barPoint.x > sourceWindow.contentItem.width ||
+          barPoint.y < 0 || barPoint.y > sourceWindow.contentItem.height)
+        return null
+    }
+
+    var candidates = []
     for (var i = 0; i < moduleSlots.length; i++) {
       var slot = moduleSlots[i]
       if (!slot || slot === sourceSlot || !slot.visible || slot.width <= 0 || slot.height <= 0) continue
@@ -588,16 +701,16 @@ Item {
       } catch (e) {
       }
 
-      if (scenePoint.x >= slotPoint.x && scenePoint.x <= slotPoint.x + slot.width &&
-          scenePoint.y >= slotPoint.y && scenePoint.y <= slotPoint.y + slot.height) {
-        return {
-          slot: slot,
-          after: root.vertical ? scenePoint.y > slotPoint.y + slot.height / 2 : scenePoint.x > slotPoint.x + slot.width / 2
-        }
-      }
+      candidates.push({
+        slot: slot,
+        x: slotPoint.x,
+        y: slotPoint.y,
+        width: slot.width,
+        height: slot.height
+      })
     }
 
-    return null
+    return BarModel.nearestDropTarget(candidates, scenePoint, root.vertical)
   }
 
   function visibleModuleSlot(region, name, sourceSlot) {
@@ -876,7 +989,25 @@ Item {
   component BarPanel: PanelWindow {
     id: barWindow
 
-    visible: !root.barHidden
+    // Hiding parks the bar just past its screen edge instead of unmapping it.
+    // Unmapping frees the layer surface and the whole scene graph, so every
+    // reveal has to rebuild them — new surface, re-shaped glyphs, re-uploaded
+    // textures — which measures ~150ms against ~20ms to tear down. Parking
+    // keeps the surface alive, so showing is only a margin change.
+    visible: !remapGuard.remapping
+    exclusionMode: root.barHidden ? ExclusionMode.Ignore : ExclusionMode.Auto
+
+    ScreenMoveRemap {
+      id: remapGuard
+      window: barWindow
+    }
+
+    margins {
+      top: root.barHidden && root.position === "top" ? -root.barSize : 0
+      bottom: root.barHidden && root.position === "bottom" ? -root.barSize : 0
+      left: root.barHidden && root.position === "left" ? -root.barSize : 0
+      right: root.barHidden && root.position === "right" ? -root.barSize : 0
+    }
 
     anchors {
       top: root.position === "top" || root.vertical
@@ -895,6 +1026,16 @@ Item {
     Loader {
       anchors.fill: parent
       sourceComponent: root.vertical ? verticalBar : horizontalBar
+
+      // A child of the loader, not a sibling of the sections: an ancestor stays
+      // hovered while the pointer is over a widget, where a sibling would lose
+      // hover to the section the pointer entered.
+      HoverHandler {
+        onHoveredChanged: root.setBarHovered(hovered)
+        // Unplugging a monitor destroys its bar without a leave event, which
+        // would strand this surface's tally and hold the peek open for good.
+        Component.onDestruction: if (hovered) root.setBarHovered(false)
+      }
     }
 
     PopupWindow {
@@ -1060,6 +1201,18 @@ Item {
         smooth: true
         opacity: 0.84
       }
+    }
+
+    Rectangle {
+      readonly property var targetRect: root.barDragTargetGeometry
+
+      visible: ghostWindow.active && targetRect !== null
+      x: targetRect ? Math.round(targetRect.x) : 0
+      y: targetRect ? Math.round(targetRect.y) : 0
+      width: targetRect ? targetRect.width : 0
+      height: targetRect ? targetRect.height : 0
+      color: Color.accent
+      radius: Math.min(width, height) / 2
     }
   }
 
@@ -1494,54 +1647,6 @@ Item {
       }
     }
 
-    Rectangle {
-      visible: !root.vertical && root.barDragTarget === slot && !root.barDragAfter
-      anchors {
-        left: parent.left
-        top: parent.top
-        bottom: parent.bottom
-      }
-      width: 2
-      color: root.barForeground
-      opacity: 0.9
-    }
-
-    Rectangle {
-      visible: !root.vertical && root.barDragTarget === slot && root.barDragAfter
-      anchors {
-        right: parent.right
-        top: parent.top
-        bottom: parent.bottom
-      }
-      width: 2
-      color: root.barForeground
-      opacity: 0.9
-    }
-
-    Rectangle {
-      visible: root.vertical && root.barDragTarget === slot && !root.barDragAfter
-      anchors {
-        left: parent.left
-        right: parent.right
-        top: parent.top
-      }
-      height: 2
-      color: root.barForeground
-      opacity: 0.9
-    }
-
-    Rectangle {
-      visible: root.vertical && root.barDragTarget === slot && root.barDragAfter
-      anchors {
-        left: parent.left
-        right: parent.right
-        bottom: parent.bottom
-      }
-      height: 2
-      color: root.barForeground
-      opacity: 0.9
-    }
-
     MouseArea {
       id: modulePointer
 
@@ -1597,6 +1702,7 @@ Item {
           var drop = root.moduleDropAtScene(scenePoint, slot)
           root.barDragTarget = drop ? drop.slot : null
           root.barDragAfter = drop ? drop.after : false
+          root.barDragTargetGeometry = drop ? root.dropMarkerRect(drop.slot, drop.after) : null
         }
       }
 

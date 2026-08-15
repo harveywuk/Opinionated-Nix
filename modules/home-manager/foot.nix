@@ -22,7 +22,10 @@ in {
         workers = 0;
       };
 
-      scrollback.lines = 10000;
+      scrollback = {
+        lines = 10000;
+        multiplier = 7.0;
+      };
 
       cursor = {
         style = "block";

@@ -61,6 +61,26 @@ lib: {
       default = 2;
       description = "Display scale factor (1 for 1x displays, 2 for 2x displays)";
     };
+    shell = lib.mkOption {
+      type = lib.types.submodule {
+        options = {
+          workspace_count = lib.mkOption {
+            type = lib.types.ints.between 1 20;
+            default = 10;
+            description = ''
+              How many workspaces the bar's workspace widget shows. Omarchy binds
+              SUPER + 1..0 to the first ten and ships no more, so 10 is the
+              upstream default. Raise it only if you also bind the extra
+              workspaces yourself (for example SUPER + F1..F10 through
+              `wayland.windowManager.hyprland.extraConfig`) — this option only
+              teaches the bar to display them.
+            '';
+          };
+        };
+      };
+      default = {};
+      description = "Omarchy shell (Quickshell) tweaks";
+    };
     browser = lib.mkOption {
       type = lib.types.enum ["chromium" "brave"];
       default = "chromium";
@@ -314,6 +334,18 @@ lib: {
             default = false;
             description = "Enable Voxtype voice dictation support";
           };
+          config_file = lib.mkOption {
+            type = lib.types.nullOr lib.types.path;
+            default = null;
+            description = ''
+              Seed `~/.config/voxtype/config.toml` from this file instead of the
+              Omarchy default. Copied once, never overwritten, so runtime edits
+              survive a rebuild. Use it for a personal model choice, an
+              `initial_prompt` naming your own jargon, or `[text].replacements`
+              for terms the model keeps mishearing — none of which belong in a
+              shared default.
+            '';
+          };
         };
       };
       default = {};
@@ -322,6 +354,11 @@ lib: {
     hardware = lib.mkOption {
       type = lib.types.submodule {
         options = {
+          apple_brcmfmac_supplicant.enable = lib.mkOption {
+            type = lib.types.bool;
+            default = false;
+            description = "Apple Macs with Broadcom Wi-Fi: run the WPA handshake in wpa_supplicant instead of the firmware, which fails against WPA2/WPA3 transition-mode access points and reports the password as wrong (brcmfmac feature_disable=0x82000).";
+          };
           asus_b9406.enable = lib.mkOption {
             type = lib.types.bool;
             default = false;

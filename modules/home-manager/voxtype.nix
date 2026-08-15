@@ -8,14 +8,18 @@
   voxtype = pkgs.callPackage ../../packages/voxtype.nix {};
 in {
   config = lib.mkIf cfg.voxtype.enable {
-    # Deploy default voxtype config only if user doesn't have one yet
-    # Voxtype's Home Manager module merges user settings into defaults,
-    # so we avoid overwriting user customizations on rebuild
+    # Deploy the voxtype config only if the user doesn't have one yet, so
+    # runtime edits survive a rebuild. omarchy.voxtype.config_file overrides the
+    # Omarchy default with a personal one (model, initial_prompt, replacements).
     home.activation.voxtype-config = lib.hm.dag.entryAfter ["writeBoundary"] ''
       VOXTYPE_CONFIG="$HOME/.config/voxtype/config.toml"
       if [[ ! -f "$VOXTYPE_CONFIG" ]]; then
         $DRY_RUN_CMD mkdir -p "$(dirname "$VOXTYPE_CONFIG")"
-        $DRY_RUN_CMD cp "${../../default/voxtype/config.toml}" "$VOXTYPE_CONFIG"
+        $DRY_RUN_CMD cp "${
+        if cfg.voxtype.config_file != null
+        then cfg.voxtype.config_file
+        else ../../default/voxtype/config.toml
+      }" "$VOXTYPE_CONFIG"
       fi
     '';
 

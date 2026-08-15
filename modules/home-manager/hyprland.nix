@@ -64,7 +64,6 @@ inputs: {
       ["HYPRCURSOR_THEME" "Bibata-Modern-Classic"]
       ["GDK_BACKEND" "wayland"]
       ["QT_QPA_PLATFORM" "wayland"]
-      ["QT_STYLE_OVERRIDE" "kvantum"]
       ["MOZ_ENABLE_WAYLAND" "1"]
       ["ELECTRON_OZONE_PLATFORM_HINT" "wayland"]
       ["OZONE_PLATFORM" "wayland"]
@@ -208,14 +207,21 @@ inputs: {
       else "nil";
     dispatcher = builtins.elemAt parts dispIdx;
     rest = lib.strings.trim (lib.concatStringsSep "," (lib.drop (dispIdx + 1) parts));
-  in
-    if dispatcher == "exec"
-    then "o.bind(${builtins.toJSON combo}, ${descArg}, ${builtins.toJSON rest}${optStr})"
-    else "hl.bind(${builtins.toJSON combo}, hl.dsp.${dispatcher}(${
+    dispatcherCall = "hl.dsp.${dispatcher}(${
       if rest == ""
       then ""
       else builtins.toJSON rest
-    })${optStr})";
+    })";
+  in
+    if dispatcher == "exec"
+    then "o.bind(${builtins.toJSON combo}, ${descArg}, ${builtins.toJSON rest}${optStr})"
+    # o.bind(keys, description, dispatcher, options) takes a dispatcher value as
+    # happily as an exec string, and it is what puts the entry in the keybindings
+    # menu. Route described binds through it whatever the dispatcher — going
+    # straight to hl.bind would drop the description and hide the binding.
+    else if hasDesc
+    then "o.bind(${builtins.toJSON combo}, ${descArg}, ${dispatcherCall}${optStr})"
+    else "hl.bind(${builtins.toJSON combo}, ${dispatcherCall}${optStr})";
 
   # settings.bind* / exec-once / env (lists) → lua
   settingsBinds = lib.concatLists (lib.mapAttrsToList (k: v: lib.optionals (isBindKey k) (map (mkBindFrom k) (asList v))) userSettings);

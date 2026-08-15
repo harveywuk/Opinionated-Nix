@@ -7,7 +7,8 @@
   sddm-theme-omarchy = pkgs.callPackage ../packages/sddm-theme-omarchy.nix {};
   hyprland-preview-share-picker = pkgs.callPackage ../packages/hyprland-preview-share-picker.nix {};
   voxtype = pkgs.callPackage ../packages/voxtype.nix {};
-  terminaltexteffects = pkgs.callPackage ../packages/terminaltexteffects.nix {};
+  ttfx = pkgs.callPackage ../packages/ttfx.nix {};
+  omacalc = pkgs.callPackage ../packages/omacalc.nix {};
   cfg = config.omarchy;
 in {
   # Regular packages
@@ -70,6 +71,16 @@ in {
       unzip
       wget
       gnumake
+      # The python scripts in bin/ (omarchy-file-select, omarchy-agent-usage-*,
+      # omarchy-dev-font) run `#!/usr/bin/env python3`. Arch's python-gobject is
+      # a system package there; here the interpreter on PATH has to carry it.
+      (python3.withPackages (ps: [ps.pygobject3]))
+      ddcutil # omarchy-brightness-display-ddc, external monitor brightness
+      vips # omarchy-menu-images thumbnails (upstream libvips)
+      qrencode # omarchy-network-qr, the Wi-Fi share card
+      zbar # omarchy-capture-qr decodes what the region picker grabs
+      # Terminal multiplexer alongside tmux (quattro ships both)
+      herdr
 
       # TUIs
       lazygit
@@ -80,11 +91,10 @@ in {
       fastfetch
       gum
       bluetui
-      impala
       inxi
 
-      # Screensaver (custom package for v0.14.2 with --random-effect support)
-      terminaltexteffects
+      # Screensaver (quattro swapped python terminaltexteffects -> ttfx)
+      ttfx
 
       # GUIs
       (
@@ -95,7 +105,7 @@ in {
       obsidian
       vlc
       mpv
-      gnome-calculator
+      omacalc # quattro replaced gnome-calculator with omacalc
       loupe
       krita
       pinta
@@ -152,8 +162,6 @@ in {
       # Qt Wayland and theming
       kdePackages.qtwayland
       qt5.qtwayland
-      libsForQt5.qtstyleplugin-kvantum
-      kdePackages.qtstyleplugin-kvantum
     ];
 
   homePackages = with pkgs; [

@@ -7,6 +7,18 @@
   hw = config.omarchy.hardware;
 in {
   config = lib.mkMerge [
+    # Apple Macs with Broadcom Wi-Fi
+    # Mirrors install/hardware/apple/fix-brcmfmac-supplicant.sh. Upstream detects
+    # the PCI IDs at install time; on Nix this is a per-machine opt-in.
+    (lib.mkIf hw.apple_brcmfmac_supplicant.enable {
+      boot.extraModprobeConfig = ''
+        # Broadcom's firmware supplicant and authenticator fail the WPA four-way
+        # handshake on Apple hardware, which surfaces as a rejected password.
+        # Disable both so wpa_supplicant performs the handshake instead.
+        options brcmfmac feature_disable=0x82000
+      '';
+    })
+
     # ASUS ExpertBook B9406 (Panther Lake / Xe3) display + touchpad fixes
     # Mirrors install/config/hardware/asus/fix-asus-ptl-b9406-{display,touchpad}.sh
     (lib.mkIf hw.asus_b9406.enable {

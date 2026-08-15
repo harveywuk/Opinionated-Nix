@@ -163,17 +163,29 @@ in {
   # Credential storage for apps (gnome-keyring); SDDM PAM lines configured above.
   services.gnome.gnome-keyring.enable = true;
 
+  # Notice dropped SSH connections within a minute instead of hanging until TCP
+  # gives up, so the shell's ssh wrapper can clean up and reconnect. ~/.ssh/config
+  # is read first and wins, so per-host overrides still apply.
+  # Mirrors install/config/ssh-keepalive.sh.
+  programs.ssh.extraConfig = ''
+    Host *
+      ServerAliveInterval 15
+      ServerAliveCountMax 3
+      ConnectTimeout 10
+  '';
+
   # Networking
   services.resolved.enable = true;
   hardware.bluetooth.enable = true;
 
-  # Use iwd for wifi (required by impala TUI)
-  networking.wireless.iwd.enable = true;
+  # NetworkManager owns Wi-Fi, on its default wpa_supplicant backend. Upstream
+  # left iwd in b19dc7ea (May 2026) and retires the iwd + impala pair together in
+  # omarchy-upgrade-to-quattro; we had switched to iwd for the impala TUI back
+  # when Omarchy still used it. The shell's own network panel replaced that TUI,
+  # and the quattro network scripts (omarchy-network-{password,qr,band}) read the
+  # passphrase out of NetworkManager, which only holds it on this backend.
   networking = {
-    networkmanager = {
-      enable = true;
-      wifi.backend = "iwd"; # Use iwd as wifi backend for NetworkManager
-    };
+    networkmanager.enable = true;
   };
 
   fonts.packages = with pkgs; [
