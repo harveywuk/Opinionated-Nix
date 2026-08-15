@@ -79,6 +79,7 @@ in {
       vips # omarchy-menu-images thumbnails (upstream libvips)
       qrencode # omarchy-network-qr, the Wi-Fi share card
       zbar # omarchy-capture-qr decodes what the region picker grabs
+      libqalculate # qalc, behind the menu's inline calculator
       # Terminal multiplexer alongside tmux (quattro ships both)
       herdr
 

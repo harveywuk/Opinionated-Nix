@@ -75,6 +75,13 @@ Item {
   property var providerQueue: []
   property int providerRevision: 0
 
+  // Inline calculator. Owns one long-lived qalc; see CalculatorService.qml.
+  // Its result becomes the top row while the query looks like a calculation.
+  CalculatorService {
+    id: calculator
+    onResultChanged: root.rebuildDisplay()
+  }
+
   // Shared application engine (entries, hidden filters, icons, launch,
   // removal), owned by the shell and also used by the standalone launcher.
   readonly property var appLibrary: root.shell ? root.shell.appLibrary : null
@@ -602,6 +609,29 @@ Item {
         for (var d = 0; d < drilldownRows.length; d++) drilldownRows[d].section = "drilldown"
       }
       rows = currentRows.concat(drilldownRows)
+
+      // The answer outranks every match, because when the query is a sum the
+      // sum is what you came for. Enter copies it and closes, like every other
+      // row that runs a command.
+      if (calculator.result) {
+        rows.unshift({
+          itemId: "calculator.result",
+          kind: "action",
+          icon: "\uf1ec",
+          iconFont: "",
+          appIcon: "",
+          appId: "",
+          label: calculator.result,
+          target: "",
+          detail: query,
+          path: "",
+          childCount: 0,
+          action: "wl-copy -- " + Util.shellQuote(calculator.result),
+          provider: "",
+          score: -1,
+          section: ""
+        })
+      }
     } else {
       for (var j = 0; j < root.itemOrder.length; j++) {
         var child = root.item(root.itemOrder[j])
@@ -681,6 +711,7 @@ Item {
     root.cursorActive = root.mode !== "input"
     root.disarmPointer()
     if (!root.dmenuActive && root.filterText.trim()) root.loadProvidersForSearch()
+    if (!root.dmenuActive) calculator.evaluate(root.filterText)
     root.rebuildDisplay()
   }
 
@@ -790,6 +821,7 @@ Item {
     if (root.dmenuActive) root.finishRequest(null)
     opened = false
     filterText = ""
+    calculator.stop()
   }
 
   function openExistingMenu(initialMenu) {
