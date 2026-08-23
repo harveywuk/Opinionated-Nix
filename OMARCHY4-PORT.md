@@ -317,9 +317,10 @@ them into Lua** (`modules/home-manager/hyprland.nix`, `hmLua`): structured
 mouse). The result is `~/.config/hypr/hm.lua`, required **after** the Omarchy
 defaults so the user's overrides win. HM still writes `hyprland.conf` — harmless,
 since Hyprland loads the `.lua` and ignores it. **No nixos-config changes.**
-Validated end-to-end: a real `nixos-rebuild build` of nixtop generates an
-`hm.lua` carrying Mike's Dvorak + all 5 personal binds (incl. the `binddr`
-voxtype-stop as `{ release = true }`) with correct shell-in-lua escaping.
+Validated end-to-end: a real `nixos-rebuild build` of a downstream config
+generates an `hm.lua` carrying its `kb_variant` plus all five of its custom
+binds (incl. a `binddr` voxtype-stop as `{ release = true }`) with correct
+shell-in-lua escaping.
 
 Round-trips faithfully because `builtins.toJSON` escaping of a command produces a
 Lua double-quoted string Lua parses back to the identical bash (e.g.
@@ -344,8 +345,8 @@ covered omarchy's *own* options, not arbitrary user HM settings. Don't re-attemp
 the lua port unless Hyprland adds a lua→hyprlang source or HM gains a lua emitter.
 
 The v4 IPC bindings, shell autostart, and window rules all live in hyprlang
-(`hyprland/bindings.nix`, `omarchy-shell.nix`) and dry-build clean against the
-real nixtop config.
+(`hyprland/bindings.nix`, `omarchy-shell.nix`) and dry-build clean against a
+real downstream config.
 
 ## Major-alignment status (June 30, 2026)
 The legacy stack is fully removed and omarchy-shell is the only desktop (commits
