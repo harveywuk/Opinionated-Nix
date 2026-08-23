@@ -93,6 +93,23 @@ options). The remaining entries (Keybindings, Input, Config > Hyprland) open
 Nix-generated read-only files — view-only by design; edits belong in
 nixos-config / HM settings (the `hm.lua` bridge loads last and overrides).
 
+## HM→Lua bind bridge: dispatcher names (August 23, 2026)
+The bridge in `modules/home-manager/hyprland.nix` used to emit
+`hl.dsp.<dispatcher>(args)` for whatever word a `bind*` line names. The v4 lua
+API namespaced or renamed most classic hyprlang dispatchers, so that form
+produced lua that throws at config load and left the bind silently dead —
+`hl.dsp.workspace` is a *table* (`toggle_special`, `move`, `rename`,
+`change_id`, `swap_monitors`), and `movetoworkspace{,silent}` do not exist under
+any name. Identical in the 0.55 and 0.56 stubs, so it was never a version skew.
+A `luaDispatchers` table now translates the dispatchers whose lua form upstream
+demonstrates in `default/hypr/bindings/*.lua`; everything else keeps the generic
+form, which is correct for the dispatchers the API left callable at the top
+level (`focus`, `layout`, `exec_cmd`, `dpms`, `submap`, `global`, `pass`, …).
+
+Found because a plain `bindd = SUPER, F1, …, workspace, 11` second workspace
+bank rendered as `hl.dsp.workspace("11")` and put Hyprland's error overlay on
+screen at `hm.lua:19`.
+
 ## Known follow-ups (quattro)
 - ~~`solitude` and `last-horizon` unported~~ — done (commit `00ec53de`), rendered the same way as Lupine.
 - **Arch lifecycle scripts remain vendored verbatim** and are Arch-only in practice: `omarchy-update*`, `omarchy-channel-*`, `omarchy-migrate*`, `omarchy-dev-*`, `omarchy-setup-system`, `omarchy-upgrade-to-quattro`, `omarchy-remove-launcher-entry` (uses `pacman -Qqo`). Kept for name parity; `nixos-rebuild` is the real path.

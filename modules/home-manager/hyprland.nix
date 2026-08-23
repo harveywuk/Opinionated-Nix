@@ -172,6 +172,35 @@ inputs: {
   isSpecialKey = k: isBindKey k || lib.elem k specialNonBind || lib.hasPrefix "$" k;
   regularSettings = lib.filterAttrs (k: _: !(isSpecialKey k)) userSettings;
 
+  # The v4 lua API namespaced or renamed most of the classic hyprlang
+  # dispatchers. `hl.dsp.workspace` is a *table* (toggle_special, move, rename,
+  # change_id, swap_monitors), not a function, and `movetoworkspace` /
+  # `movetoworkspacesilent` do not exist under any name — so the generic
+  # `hl.dsp.<dispatcher>(args)` form below emits lua that throws the moment
+  # Hyprland loads the config, and the bind is silently dead. Identical in 0.55
+  # and 0.56, so this is not a version skew.
+  #
+  # Each entry takes the already-JSON-quoted argument string (or null when the
+  # bind carried none) and returns the call upstream writes for that action in
+  # default/hypr/bindings/*.lua. Only dispatchers whose lua form is demonstrated
+  # there are listed; anything absent keeps the generic form, which is correct
+  # for every dispatcher the API left callable at the top level (focus, layout,
+  # exec_cmd, dpms, submap, global, pass, …).
+  luaDispatchers = {
+    workspace = arg: "hl.dsp.focus({ workspace = ${arg} })";
+    movetoworkspace = arg: "hl.dsp.window.move({ workspace = ${arg} })";
+    movetoworkspacesilent = arg: "hl.dsp.window.move({ workspace = ${arg}, follow = false })";
+    movefocus = arg: "hl.dsp.focus({ direction = ${arg} })";
+    focusmonitor = arg: "hl.dsp.focus({ monitor = ${arg} })";
+    movecurrentworkspacetomonitor = arg: "hl.dsp.workspace.move({ monitor = ${arg} })";
+    togglespecialworkspace = arg: "hl.dsp.workspace.toggle_special(${arg})";
+    killactive = _: "hl.dsp.window.close()";
+    togglefloating = _: "hl.dsp.window.float({ action = \"toggle\" })";
+    pseudo = _: "hl.dsp.window.pseudo()";
+    bringactivetotop = _: "hl.dsp.window.bring_to_top()";
+    togglesplit = _: "hl.dsp.layout(\"togglesplit\")";
+  };
+
   # Translate a hyprlang bind value ("MODS, KEY[, desc], dispatcher, args…")
   # for directive `bindX`, where the X letters are flags (d=description,
   # e=repeat, l=locked, r=release, m=mouse). exec dispatchers become o.bind
@@ -207,11 +236,14 @@ inputs: {
       else "nil";
     dispatcher = builtins.elemAt parts dispIdx;
     rest = lib.strings.trim (lib.concatStringsSep "," (lib.drop (dispIdx + 1) parts));
-    dispatcherCall = "hl.dsp.${dispatcher}(${
+    argStr =
       if rest == ""
       then ""
-      else builtins.toJSON rest
-    })";
+      else builtins.toJSON rest;
+    dispatcherCall =
+      if luaDispatchers ? ${dispatcher}
+      then luaDispatchers.${dispatcher} argStr
+      else "hl.dsp.${dispatcher}(${argStr})";
   in
     if dispatcher == "exec"
     then "o.bind(${builtins.toJSON combo}, ${descArg}, ${builtins.toJSON rest}${optStr})"
