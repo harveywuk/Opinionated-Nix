@@ -204,7 +204,9 @@ lib: {
         "SUPER SHIFT, I, Messenger, exec, $messenger"
         "SUPER SHIFT, O, Obsidian, exec, ~/.local/share/omarchy/bin/omarchy-launch-or-focus obsidian 'obsidian --disable-gpu'"
         "SUPER SHIFT, SLASH, Password manager, exec, $passwordManager"
-        "SUPER SHIFT, R, Calculator, exec, ~/.local/share/omarchy/bin/omarchy-launch-or-focus gnome-calculator gnome-calculator"
+        # quattro replaced gnome-calculator with omacalc, so that is what
+        # modules/packages.nix ships. Override this list to bind something else.
+        "SUPER SHIFT, R, Calculator, exec, ~/.local/share/omarchy/bin/omarchy-launch-or-focus omacalc omacalc"
         # Uncomment if gaming.enable = true (changed from SUPER, S to avoid scratchpad conflict):
         # "SUPER SHIFT, S, Steam, exec, ~/.local/share/omarchy/bin/omarchy-launch-or-focus steam steam"
       ];

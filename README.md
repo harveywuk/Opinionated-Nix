@@ -326,6 +326,7 @@ table can.
 - `SUPER SHIFT + O` - Obsidian
 - `SUPER SHIFT + W` - Omawrite
 - `SUPER SHIFT + /` - Passwords
+- `SUPER SHIFT + R` - Calculator (also `SUPER CTRL + Q` and `XF86Calculator`)
 
 ### Window Management
 - `SUPER + W` - Close window
