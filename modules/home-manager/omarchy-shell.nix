@@ -7,7 +7,26 @@ inputs: {
   # Omarchy 4 (quattro) targets rolling quickshell; nixpkgs' 0.3.0 left the
   # background reveal transition + network/weather panels broken. Use the
   # upstream quickshell flake instead of pkgs.quickshell.
-  quickshellPkg = inputs.quickshell.packages.${pkgs.stdenv.hostPlatform.system}.default;
+  quickshellBase = inputs.quickshell.packages.${pkgs.stdenv.hostPlatform.system}.default;
+
+  # Theme backgrounds are webp since upstream a4219f8f, and Qt reads webp only
+  # through the qtimageformats plugin. Arch pulls it in as the qt6-imageformats
+  # package (upstream added it to omarchy-base.packages in the same change); on
+  # Nix it is a separate output that Qt finds only via QT_PLUGIN_PATH. Without
+  # it every background, theme preview and lock wallpaper renders blank.
+  # Prefixed onto quickshell alone rather than exported session-wide, so no
+  # other Qt app is handed a plugin dir from a different Qt build.
+  quickshellPkg = pkgs.symlinkJoin {
+    name = "quickshell-omarchy";
+    paths = [quickshellBase];
+    nativeBuildInputs = [pkgs.makeWrapper];
+    postBuild = ''
+      wrapProgram $out/bin/quickshell \
+        --prefix QT_PLUGIN_PATH : ${pkgs.qt6.qtimageformats}/lib/qt-6/plugins
+      wrapProgram $out/bin/qs \
+        --prefix QT_PLUGIN_PATH : ${pkgs.qt6.qtimageformats}/lib/qt-6/plugins
+    '';
+  };
 
   # CRITICAL Nix deviation: deploy the shell tree as a single symlink to a
   # real-file copy, NOT via `home.file recursive = true`. The shell's

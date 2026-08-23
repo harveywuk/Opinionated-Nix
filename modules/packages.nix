@@ -67,6 +67,10 @@ in {
       eza
       fd
       jq
+      # The clipboard watcher's capture.sh decodes mixed UTF-16 clipboard text
+      # with perl (Encode + JSON::PP, both core). Arch always has perl; here it
+      # has to be asked for, or every clipboard entry is dropped.
+      perl
       curl
       unzip
       wget
