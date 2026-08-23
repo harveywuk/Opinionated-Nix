@@ -23,10 +23,11 @@ Deviations from Omarchy are made only when technically unavoidable and are alway
 
 ## Features
 
-- 17 color themes with automatic light/dark mode switching
+- 25 color themes with automatic light/dark mode switching
 - Hyprland Wayland compositor with smart focus-or-launch behavior
-- Ghostty, Alacritty, and Kitty terminal support (all fully themed)
-- Walker app launcher, waybar status bar, mako notifications
+- Foot, Ghostty, Alacritty, and Kitty terminal support (all fully themed)
+- `omarchy-shell` — one Quickshell instance hosting the bar, menu, notifications,
+  OSD, lock screen and polkit agent (Omarchy 4 replaced waybar/walker/mako/swayosd)
 - Neovim and VSCode integration
 - Docker, lazygit, and modern dev tooling
 - Webapp desktop integration — turn websites into apps
@@ -126,6 +127,14 @@ omarchy = {
 - `hackerman`
 - `osaka-jade`
 - `ristretto`
+- `miasma`
+- `vantablack`
+- `white` (light)
+- `retro-82`
+- `lumon`
+- `lupine` (light)
+- `solitude`
+- `last-horizon`
 
 **Light theme auto-detection:**
 ```nix
@@ -164,8 +173,30 @@ omarchy = {
 ```nix
 omarchy = {
   browser = "chromium";  # or "brave"
-  terminal = "ghostty";  # or "alacritty", "kitty"
+  terminal = "ghostty";  # or "foot", "alacritty", "kitty"
 };
+```
+
+`foot` is Omarchy 4's own default. It accepts xterm-style `-e`, so the terminal
+keybindings work unchanged whichever you pick.
+
+### Shell (Bar)
+
+```nix
+omarchy.shell.workspace_count = 10;  # default; 1-20
+```
+
+How many workspaces the bar's workspace widget shows. Omarchy binds
+`SUPER + 1..0` to the first ten and ships no more, so 10 is the upstream
+default. Raising it only teaches the bar to display them — bind the extra
+workspaces yourself, for example through
+`wayland.windowManager.hyprland.extraConfig`:
+
+```nix
+wayland.windowManager.hyprland.extraConfig = ''
+  bindd = SUPER, F1, Switch to workspace 11, workspace, 11
+  bindd = SUPER SHIFT, F1, Move window to workspace 11, movetoworkspace, 11
+'';
 ```
 
 ### Optional Features
@@ -213,67 +244,120 @@ omarchy.firewall = {
 
 #### Voice Dictation
 ```nix
-omarchy.voxtype.enable = true;
+omarchy.voxtype = {
+  enable = true;
+  config_file = ./my-voxtype.toml;  # optional; seeds ~/.config/voxtype/config.toml
+};
 ```
-Hold `SUPER + CTRL + X` to dictate.
+`SUPER + CTRL + X` toggles dictation; `F9` is push-to-talk (hold to talk).
 
 #### Office Suite
 ```nix
 omarchy.office_suite.enable = true;
 ```
 
+#### Hardware Workarounds
+
+All off by default — enable only the ones your machine needs.
+
+```nix
+omarchy.hardware = {
+  apple_brcmfmac_supplicant.enable = false;  # Macs: WPA handshake in wpa_supplicant, not firmware
+  asus_b9406.enable = false;                 # ASUS ExpertBook B9406 (Panther Lake / Xe3)
+  asus_z13.enable = false;                   # ASUS ROG Flow Z13 (GZ302) detachable touchpad
+  asus_zenbook_ux5406aa.enable = false;      # ASUS Zenbook UX5406AA backlight
+  intel_ptl_fred.enable = false;             # Intel Panther Lake FRED
+  intel_ptl_video_accel.enable = false;      # Intel hardware video acceleration
+  intel_ptl_sof_firmware.enable = false;     # Sound Open Firmware for the audio DSP
+  lenovo_yoga_pro7_bass.enable = false;      # Lenovo Yoga Pro 7 14IAH10 bass speakers
+};
+```
+
 ---
 
 ## Default Keybindings
 
+Press `SUPER + K` for the live list — it is generated from the bindings actually
+loaded, including any you add yourself, so it never goes stale the way this
+table can.
+
 ### Menus & Launchers
-- `SUPER + SPACE` - App launcher (Walker)
+- `SUPER + SPACE` - Omarchy menu
+- `SUPER ALT + SPACE` - Apps menu
 - `SUPER + ESCAPE` - System menu
-- `SUPER ALT + SPACE` - Omarchy menu
-- `SUPER CTRL + E` - Emoji picker
-- `SUPER + K` - Show keybindings
+- `SUPER CTRL + E` - Emojis
+- `SUPER CTRL + C` - Capture menu
+- `SUPER CTRL + O` - Toggle menu
+- `SUPER CTRL + H` - Hardware menu
+- `SUPER + K` - Keybindings
+- `SUPER ALT + K` - Tmux keybindings
+- `SUPER CTRL + K` - Herdr keybindings
+- `SUPER CTRL + Q` - Calculator
 
 ### Webapps (Focus-or-Launch)
-- `SUPER + A` - ChatGPT
-- `SUPER SHIFT + A` - Grok
-- `SUPER + C` - Calendar (Hey)
-- `SUPER + E` - Email (Hey)
-- `SUPER + Y` - YouTube
-- `SUPER + X` - X/Twitter
-- `SUPER SHIFT + X` - Compose post on X
-- `SUPER SHIFT + G` - WhatsApp
+- `SUPER SHIFT + A` - ChatGPT
+- `SUPER SHIFT ALT + A` - Grok
+- `SUPER SHIFT + C` - Calendar (Hey)
+- `SUPER SHIFT + E` - Email (Hey)
+- `SUPER SHIFT ALT + E` - New email
+- `SUPER SHIFT + Y` - YouTube
+- `SUPER SHIFT + X` - X
+- `SUPER SHIFT ALT + X` - Compose post on X
+- `SUPER SHIFT ALT + G` - WhatsApp
+- `SUPER SHIFT + P` - Google Photos
+- `SUPER SHIFT + S` - Google Maps
 
 ### Core Apps
 - `SUPER + RETURN` - Terminal
+- `SUPER ALT + RETURN` - Tmux
+- `SUPER CTRL + RETURN` - Herdr
+- `SUPER SHIFT + RETURN` - Browser
 - `SUPER SHIFT + B` - Browser
+- `SUPER SHIFT ALT + B` - Browser (private)
 - `SUPER SHIFT + F` - File manager
-- `SUPER SHIFT + M` - Music player
-- `SUPER SHIFT + N` - Neovim
-- `SUPER SHIFT + O` - Obsidian
+- `SUPER SHIFT ALT + F` - File manager (cwd)
+- `SUPER SHIFT + N` - Editor
+- `SUPER SHIFT + M` - Music
+- `SUPER SHIFT ALT + M` - Music TUI
+- `SUPER SHIFT + D` - Docker
 - `SUPER SHIFT + T` - btop
-- `SUPER SHIFT + D` - Lazy Docker
 - `SUPER SHIFT + I` - Messenger
-- `SUPER + /` - Password manager
-- `SUPER + R` - Calculator
+- `SUPER SHIFT + G` - Signal
+- `SUPER SHIFT + O` - Obsidian
+- `SUPER SHIFT + W` - Omawrite
+- `SUPER SHIFT + /` - Passwords
 
 ### Window Management
 - `SUPER + W` - Close window
+- `CTRL ALT + DELETE` - Close all windows
 - `SUPER + T` - Toggle floating/tiling
-- `SUPER + J` - Toggle split
+- `SUPER + J` - Toggle window split
+- `SUPER + L` - Toggle workspace layout
 - `SUPER + F` - Full screen
 - `SUPER CTRL + F` - Tiled full screen
 - `SUPER ALT + F` - Full width
 - `SUPER + O` - Pop window out (float & pin)
 - `SUPER + P` - Pseudo window
+- `SUPER + HOME` - Restore window width
+- `SUPER ALT + HOME` - Save window width
 - `SUPER + Arrow Keys` - Move focus
 - `SUPER SHIFT + Arrow Keys` - Swap windows
+- `SUPER SHIFT ALT + Arrow Keys` - Move workspace to another monitor
 - `SUPER + 1-0` - Switch workspace
 - `SUPER SHIFT + 1-0` - Move to workspace
+- `SUPER SHIFT ALT + 1-0` - Move to workspace silently
 - `SUPER + TAB` - Next workspace
 - `SUPER SHIFT + TAB` - Previous workspace
-- `SUPER + S` - Toggle scratchpad
+- `SUPER CTRL + TAB` - Former workspace
+- `SUPER + S` / `SUPER + \`` - Toggle scratchpad (Quake console)
+- `SUPER ALT + S` / `SUPER SHIFT + \`` - Move window to scratchpad
 - `SUPER + G` - Toggle window grouping
+- `SUPER ALT + G` - Move window out of group
 - `SUPER + BACKSPACE` - Toggle window transparency
+- `SUPER SHIFT + BACKSPACE` - Toggle window gaps
+- `SUPER CTRL + BACKSPACE` - Toggle single-window square aspect
+- `SUPER + /` - Monitor scaling up
+- `SUPER ALT + /` - Monitor scaling down
 
 ### Copy / Paste / Cut
 - `SUPER + C` - Universal copy
@@ -282,26 +366,44 @@ omarchy.office_suite.enable = true;
 - `SUPER CTRL + V` - Clipboard manager
 
 ### Screenshots & Recording
-- `PRINT` - Screenshot with editing (satty)
-- `SHIFT + PRINT` - Screenshot to clipboard
-- `ALT + PRINT` - Screen recording menu
+- `PRINT` - Screenshot
+- `ALT + PRINT` - Screen recording
 - `SUPER + PRINT` - Color picker
+- `SUPER CTRL + PRINT` - Extract text (OCR) from screenshot
+- `SUPER CTRL + S` - Share
+- `SUPER CTRL + .` - Transcode
 
 ### Notifications
 - `SUPER + ,` - Dismiss last notification
 - `SUPER SHIFT + ,` - Dismiss all notifications
 - `SUPER CTRL + ,` - Toggle notification silencing
+- `SUPER ALT + ,` - Invoke last notification
+- `SUPER SHIFT ALT + ,` - Open notification history
 
 ### Aesthetics
-- `SUPER SHIFT + SPACE` - Toggle waybar
-- `SUPER CTRL + SPACE` - Next background
+- `SUPER SHIFT + SPACE` - Toggle top bar
+- `SUPER CTRL + SPACE` - Background switcher
 - `SUPER SHIFT CTRL + SPACE` - Theme menu
 
 ### System
-- `SUPER CTRL + A` - Audio controls
-- `SUPER CTRL + B` - Bluetooth controls
-- `SUPER CTRL + I` - Toggle idle lock
+- `SUPER CTRL + A` - Audio
+- `SUPER CTRL + B` - Bluetooth
+- `SUPER CTRL + W` - Network
+- `SUPER CTRL + D` - Display
+- `SUPER CTRL + ALT + D` - Calendar
+- `SUPER CTRL + P` - Power
+- `SUPER CTRL + T` - Activity
+- `SUPER CTRL + I` - Toggle locking on idle
 - `SUPER CTRL + N` - Toggle nightlight
+- `SUPER CTRL + L` - Lock system
+- `SUPER CTRL + Z` - Zoom in
+- `SUPER CTRL + ALT + Z` - Reset zoom
+- `SUPER CTRL + R` - Set reminder
+- `SUPER CTRL + Delete` - Toggle laptop display
+
+### Voice Dictation
+- `SUPER CTRL + X` - Toggle dictation
+- `F9` - Push-to-talk (hold)
 
 ---
 
