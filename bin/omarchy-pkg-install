@@ -1,0 +1,70 @@
+#!/bin/bash
+
+# omarchy:summary=Add packages to the system configuration and rebuild
+# omarchy:args=[package-name...]
+# omarchy:requires-sudo=true
+# omarchy:examples=omarchy-pkg-install helix | omarchy-pkg-install ghostty ripgrep
+
+# Omarchy installs imperatively (`yay -S`). NixOS has no honest equivalent: a
+# package that is not in the configuration is not really installed, it is just
+# present until something garbage-collects it. So this edits the configuration
+# and rebuilds, which is slower than pacman but is the thing that actually
+# holds.
+#
+# The list lives in omarchy-packages.nix beside the flake, as a plain list of
+# strings, so this script can append to it without generating Nix code. Wire it
+# up once with:
+#
+#     omarchy.packages = import ./omarchy-packages.nix;
+
+set -euo pipefail
+
+[[ $# -gt 0 ]] || { echo "Usage: omarchy-pkg-install <package-name>..." >&2; exit 64; }
+
+flake_dir="$(omarchy-nix-flake-dir)"
+list="$flake_dir/omarchy-packages.nix"
+
+if [[ ! -f $list ]]; then
+  echo -e "\e[32mCreating $list\e[0m"
+  cat >"$list" <<'HEADER'
+# Packages added by omarchy-pkg-install. Plain nixpkgs attribute names; dotted
+# paths (nerd-fonts.meslo-lg) work. Safe to edit by hand.
+#
+# Wire this into your configuration with:
+#   omarchy.packages = import ./omarchy-packages.nix;
+[
+]
+HEADER
+fi
+
+added=()
+skipped=0
+for pkg in "$@"; do
+  if ! attr="$(omarchy-pkg-map "$pkg")"; then
+    echo -e "\e[31mNo nixpkgs equivalent for '$pkg' -- skipping.\e[0m" >&2
+    skipped=1
+    continue
+  fi
+  if grep -qE "^\s*\"${attr//./\\.}\"\s*$" "$list"; then
+    echo -e "\e[33m$attr is already in the configuration.\e[0m"
+    continue
+  fi
+  # Insert before the closing bracket so the file stays a valid Nix list.
+  sed -i "0,/^\]/s//  \"$attr\"\n]/" "$list"
+  added+=("$attr")
+  echo -e "\e[32mAdded $attr\e[0m"
+done
+
+if [[ ${#added[@]} -eq 0 ]]; then
+  echo "Nothing to do."
+  exit "$skipped"
+fi
+
+# Flakes only see files git knows about, so a new list file is invisible to the
+# rebuild until it is staged.
+if git -C "$flake_dir" rev-parse --git-dir >/dev/null 2>&1; then
+  git -C "$flake_dir" add "$list" 2>/dev/null || true
+fi
+
+echo -e "\e[32m\nRebuilding\e[0m"
+sudo nixos-rebuild switch --flake "$flake_dir"

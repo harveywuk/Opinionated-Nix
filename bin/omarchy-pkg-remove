@@ -1,0 +1,45 @@
+#!/bin/bash
+
+# omarchy:summary=Remove packages from the system configuration and rebuild
+# omarchy:args=[package-name...]
+# omarchy:requires-sudo=true
+# omarchy:examples=omarchy-pkg-remove helix
+
+# The inverse of omarchy-pkg-install. Only touches omarchy-packages.nix, so a
+# package that came from somewhere else in the configuration is reported rather
+# than silently left in place after a "successful" removal.
+
+set -euo pipefail
+
+[[ $# -gt 0 ]] || { echo "Usage: omarchy-pkg-remove <package-name>..." >&2; exit 64; }
+
+flake_dir="$(omarchy-nix-flake-dir)"
+list="$flake_dir/omarchy-packages.nix"
+
+removed=()
+failed=0
+for pkg in "$@"; do
+  attr="$(omarchy-pkg-map "$pkg" 2>/dev/null)" || attr="$pkg"
+
+  if [[ ! -f $list ]] || ! grep -qE "^\s*\"${attr//./\\.}\"\s*$" "$list"; then
+    if command -v "${attr##*.}" >/dev/null 2>&1; then
+      echo -e "\e[33m'$pkg' is installed by another part of your configuration,\nnot by omarchy-pkg-install. Remove it there instead.\e[0m" >&2
+    else
+      echo -e "\e[33m'$pkg' is not installed.\e[0m" >&2
+    fi
+    failed=1
+    continue
+  fi
+
+  sed -i "/^\s*\"${attr//./\\.}\"\s*$/d" "$list"
+  removed+=("$attr")
+  echo -e "\e[32mRemoved $attr\e[0m"
+done
+
+if [[ ${#removed[@]} -eq 0 ]]; then
+  exit "$failed"
+fi
+
+echo -e "\e[32m\nRebuilding\e[0m"
+sudo nixos-rebuild switch --flake "$flake_dir"
+exit "$failed"

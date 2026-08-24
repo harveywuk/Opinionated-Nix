@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# omarchy:summary=Print the directory holding this system's flake.nix
+# omarchy:examples=omarchy-nix-flake-dir
+
+# Every declarative package operation needs to know where the configuration
+# lives. OMARCHY_NIX_FLAKE wins; otherwise the conventional locations are tried
+# in order. Exits 1 with an explanation when nothing is found, so callers can
+# say something useful instead of failing on an empty path.
+
+set -euo pipefail
+
+if [[ -n ${OMARCHY_NIX_FLAKE:-} ]]; then
+  if [[ ! -f $OMARCHY_NIX_FLAKE/flake.nix ]]; then
+    echo "OMARCHY_NIX_FLAKE is set to '$OMARCHY_NIX_FLAKE' but there is no flake.nix there." >&2
+    exit 1
+  fi
+  printf '%s\n' "$OMARCHY_NIX_FLAKE"
+  exit 0
+fi
+
+for dir in /etc/nixos "$HOME/nixos-config" "$HOME/.config/nixos" "$HOME/nixos"; do
+  if [[ -f $dir/flake.nix ]]; then
+    printf '%s\n' "$dir"
+    exit 0
+  fi
+done
+
+echo "No flake.nix found in /etc/nixos, ~/nixos-config, ~/.config/nixos or ~/nixos." >&2
+echo "Set OMARCHY_NIX_FLAKE to the directory holding your flake.nix." >&2
+exit 1

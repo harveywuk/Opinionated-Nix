@@ -1,0 +1,53 @@
+#!/bin/bash
+
+# omarchy:summary=Test whether a package is installed
+# omarchy:args=<package-name>
+# omarchy:examples=omarchy-pkg-present ghostty
+
+# The menu uses this as a `when`/`disabled` guard on ~60 entries: exit 0 means
+# installed. On Arch this was a pacman query.
+#
+# Here the question is "is this package on the system", which PATH answers for
+# anything the configuration installed. The configuration list is checked too,
+# so a package stays "present" between being added and the rebuild finishing.
+
+set -uo pipefail
+
+pkg="${1-}"
+[[ -n $pkg ]] || exit 64
+
+attr="$(omarchy-pkg-map "$pkg" 2>/dev/null)" || exit 1
+
+# Declared in the configuration (possibly not rebuilt yet).
+if flake_dir="$(omarchy-nix-flake-dir 2>/dev/null)"; then
+  list="$flake_dir/omarchy-packages.nix"
+  if [[ -f $list ]] && grep -qE "^\s*\"${attr//./\\.}\"\s*$" "$list"; then
+    exit 0
+  fi
+fi
+
+# On PATH. Attribute and binary names mostly agree once any leading namespace
+# is dropped (nerd-fonts.meslo-lg -> meslo-lg), so try that and the original
+# Arch name with the common packaging suffixes stripped.
+for candidate in "${attr##*.}" "$pkg" "${pkg%-bin}" "${pkg%-desktop}"; do
+  [[ -n $candidate ]] || continue
+  if command -v "$candidate" >/dev/null 2>&1; then
+    exit 0
+  fi
+done
+
+# Fonts install no binary; ask fontconfig instead. The nixpkgs attribute and
+# the family fontconfig reports rarely match exactly (nerd-fonts.caskaydia-cove
+# ships "CaskaydiaMono Nerd Font"), so probe the attribute with hyphens removed
+# and then just its first component, which is the part that survives.
+if [[ $attr == nerd-fonts.* ]] && command -v fc-list >/dev/null 2>&1; then
+  family="${attr##*.}"
+  fonts="$(fc-list 2>/dev/null)"
+  for probe in "${family//-/}" "${family%%-*}"; do
+    if grep -qi -- "$probe" <<<"$fonts"; then
+      exit 0
+    fi
+  done
+fi
+
+exit 1
