@@ -1,9 +1,13 @@
 #!/bin/bash
 
-# omarchy:summary=Install an application and launch it
+# omarchy:summary=Launch an application, or show how to install it
 # omarchy:args=<display-name> <packages> <binary>
-# omarchy:requires-sudo=true
 # omarchy:examples=omarchy-install-and-launch Cursor cursor-bin cursor
+
+# Upstream installs then launches. Nothing here installs (see
+# omarchy-pkg-install), so this launches when the application is already there
+# and otherwise shows what to add. The launch half is still worth having: it is
+# the part that does something.
 
 set -euo pipefail
 
@@ -15,15 +19,11 @@ binary="${3-}"
   exit 64
 }
 
-omarchy-install-app "$name" "$packages"
-
-# The rebuild has to have finished before the binary exists, which it has --
-# omarchy-install-app only returns after nixos-rebuild switch.
-if ! command -v "$binary" >/dev/null 2>&1; then
-  echo -e "\e[31m$name was installed but '$binary' is not on PATH.\e[0m" >&2
-  echo "The package may name its binary differently; launch it from the app menu." >&2
-  exit 1
+if command -v "$binary" >/dev/null 2>&1; then
+  echo -e "\e[32mLaunching $name\e[0m"
+  exec setsid uwsm-app -- "$binary"
 fi
 
-echo -e "\e[32mLaunching $name\e[0m"
-exec setsid uwsm-app -- "$binary"
+echo -e "\e[33m$name is not installed.\e[0m"
+read -ra pkgs <<<"$packages"
+exec omarchy-pkg-install "${pkgs[@]}"

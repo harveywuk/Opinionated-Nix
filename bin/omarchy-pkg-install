@@ -1,81 +1,61 @@
 #!/bin/bash
 
-# omarchy:summary=Add packages to the system configuration and rebuild
+# omarchy:summary=Show how to add packages to your configuration
 # omarchy:args=[package-name...]
-# omarchy:requires-sudo=true
-# omarchy:examples=omarchy-pkg-install helix | omarchy-pkg-install ghostty ripgrep
+# omarchy:examples=omarchy-pkg-install | omarchy-pkg-install ghostty helix
 
-# Omarchy installs imperatively (`yay -S`). NixOS has no honest equivalent: a
-# package that is not in the configuration is not really installed, it is just
-# present until something garbage-collects it. So this edits the configuration
-# and rebuilds, which is slower than pacman but is the thing that actually
-# holds.
+# Upstream installs imperatively (`yay -S`). This deliberately does not install
+# anything, and does not edit your configuration either.
 #
-# The list lives in omarchy-packages.nix beside the flake, as a plain list of
-# strings, so this script can append to it without generating Nix code. Wire it
-# up once with:
+# Editing it would mean locating it first, and that cannot be done reliably --
+# a stale /etc/nixos beside a live ~/nixos-config is a common shape, multi-host
+# flakes have no single answer, and being wrong means rebuilding something that
+# is not your system. The rebuild also costs minutes, so the "click it and it is
+# installed" feel this imitates does not survive the translation anyway.
 #
-#     omarchy.packages = import ./omarchy-packages.nix;
+# What is worth keeping is the name translation: Arch and nixpkgs disagree about
+# what most packages are called, and that is real knowledge. So it resolves the
+# names and shows exactly what to add.
+#
+# Options are different and are still set for you -- see omarchy-opt-set. An
+# option like omarchy.gaming.steam.enable carries supporting configuration
+# (programs.steam, Proton-GE, firewall openings) that a package name does not,
+# so a script that knows it is worth having.
 
 set -euo pipefail
 
-# The menu's Install > Package entry calls this with no arguments and expects
-# to be asked. Only prompt when there is a terminal to prompt on.
 if [[ $# -eq 0 ]]; then
   if [[ ! -t 0 ]]; then
     echo "Usage: omarchy-pkg-install <package-name>..." >&2
     exit 64
   fi
   echo "Search nixpkgs with: nix search nixpkgs <term>"
-  read -rp "Package to install: " -a pkgs
+  read -rp "Package: " -a pkgs
   [[ ${#pkgs[@]} -gt 0 ]] || { echo "Nothing to do."; exit 0; }
   set -- "${pkgs[@]}"
 fi
 
-flake_dir="$(omarchy-nix-flake-dir)"
-list="$flake_dir/omarchy-packages.nix"
-
-if [[ ! -f $list ]]; then
-  echo -e "\e[32mCreating $list\e[0m"
-  cat >"$list" <<'HEADER'
-# Packages added by omarchy-pkg-install. Plain nixpkgs attribute names; dotted
-# paths (nerd-fonts.meslo-lg) work. Safe to edit by hand.
-#
-# Wire this into your configuration with:
-#   omarchy.packages = import ./omarchy-packages.nix;
-[
-]
-HEADER
-fi
-
-added=()
-skipped=0
+attrs=()
 for pkg in "$@"; do
-  if ! attr="$(omarchy-pkg-map "$pkg")"; then
-    echo -e "\e[31mNo nixpkgs equivalent for '$pkg' -- skipping.\e[0m" >&2
-    skipped=1
-    continue
+  if attr="$(omarchy-pkg-map "$pkg")"; then
+    attrs+=("$attr")
   fi
-  if grep -qE "^\s*\"${attr//./\\.}\"\s*$" "$list"; then
-    echo -e "\e[33m$attr is already in the configuration.\e[0m"
-    continue
-  fi
-  # Insert before the closing bracket so the file stays a valid Nix list.
-  sed -i "0,/^\]/s//  \"$attr\"\n]/" "$list"
-  added+=("$attr")
-  echo -e "\e[32mAdded $attr\e[0m"
 done
 
-if [[ ${#added[@]} -eq 0 ]]; then
-  echo "Nothing to do."
-  exit "$skipped"
-fi
+[[ ${#attrs[@]} -gt 0 ]] || exit 1
 
-# Flakes only see files git knows about, so a new list file is invisible to the
-# rebuild until it is staged.
-if git -C "$flake_dir" rev-parse --git-dir >/dev/null 2>&1; then
-  git -C "$flake_dir" add "$list" 2>/dev/null || true
+echo
+echo "Add to your configuration:"
+echo
+echo "  environment.systemPackages = with pkgs; ["
+printf '    %s\n' "${attrs[@]}"
+echo "  ];"
+echo
+echo "Then rebuild:"
+echo
+if flake_dir="$(omarchy-nix-flake-dir 2>/dev/null)"; then
+  echo "  sudo nixos-rebuild switch --flake $flake_dir"
+else
+  echo "  sudo nixos-rebuild switch --flake <your-flake>"
 fi
-
-echo -e "\e[32m\nRebuilding\e[0m"
-sudo nixos-rebuild switch --flake "$flake_dir"
+echo

@@ -8,8 +8,7 @@
 # installed. On Arch this was a pacman query.
 #
 # Here the question is "is this package on the system", which PATH answers for
-# anything the configuration installed. The configuration list is checked too,
-# so a package stays "present" between being added and the rebuild finishing.
+# anything the configuration installed.
 
 set -uo pipefail
 
@@ -18,15 +17,9 @@ pkg="${1-}"
 
 attr="$(omarchy-pkg-map "$pkg" 2>/dev/null)" || exit 1
 
-# Declared in the configuration (possibly not rebuilt yet).
-if flake_dir="$(omarchy-nix-flake-dir 2>/dev/null)"; then
-  list="$flake_dir/omarchy-packages.nix"
-  if [[ -f $list ]] && grep -qE "^\s*\"${attr//./\\.}\"\s*$" "$list"; then
-    exit 0
-  fi
-fi
-
-# On PATH. Attribute and binary names mostly agree once any leading namespace
+# On PATH -- which is the whole question now that nothing here writes to the
+# configuration: a package is present exactly when the configuration installed
+# it and the rebuild has happened. Attribute and binary names mostly agree once any leading namespace
 # is dropped (nerd-fonts.meslo-lg -> meslo-lg), so try that and the original
 # Arch name with the common packaging suffixes stripped.
 for candidate in "${attr##*.}" "$pkg" "${pkg%-bin}" "${pkg%-desktop}"; do

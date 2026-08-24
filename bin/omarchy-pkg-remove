@@ -1,59 +1,42 @@
 #!/bin/bash
 
-# omarchy:summary=Remove packages from the system configuration and rebuild
+# omarchy:summary=Show how to remove packages from your configuration
 # omarchy:args=[package-name...]
-# omarchy:requires-sudo=true
 # omarchy:examples=omarchy-pkg-remove helix
 
-# The inverse of omarchy-pkg-install. Only touches omarchy-packages.nix, so a
-# package that came from somewhere else in the configuration is reported rather
-# than silently left in place after a "successful" removal.
+# The counterpart to omarchy-pkg-install, and equally hands-off: a package is
+# installed because your configuration says so, so it goes away when your
+# configuration stops saying so. Nothing here can do that for you without
+# guessing which file to edit.
 
 set -euo pipefail
 
-flake_dir="$(omarchy-nix-flake-dir)"
-list="$flake_dir/omarchy-packages.nix"
-
-# Called with no arguments from the menu's Remove > Package entry. Only what
-# this script put there can be removed, so that list is the whole menu.
 if [[ $# -eq 0 ]]; then
   if [[ ! -t 0 ]]; then
     echo "Usage: omarchy-pkg-remove <package-name>..." >&2
     exit 64
   fi
-  mapfile -t installed < <(grep -oE '^\s*"[^"]+"' "$list" 2>/dev/null | tr -d ' "')
-  [[ ${#installed[@]} -gt 0 ]] || { echo "No packages were installed by omarchy-pkg-install."; exit 0; }
-  echo "Installed by omarchy-pkg-install:"
-  printf '  %s\n' "${installed[@]}"
-  read -rp "Package to remove: " -a pkgs
+  read -rp "Package: " -a pkgs
   [[ ${#pkgs[@]} -gt 0 ]] || { echo "Nothing to do."; exit 0; }
   set -- "${pkgs[@]}"
 fi
 
-removed=()
-failed=0
+attrs=()
 for pkg in "$@"; do
   attr="$(omarchy-pkg-map "$pkg" 2>/dev/null)" || attr="$pkg"
-
-  if [[ ! -f $list ]] || ! grep -qE "^\s*\"${attr//./\\.}\"\s*$" "$list"; then
-    if command -v "${attr##*.}" >/dev/null 2>&1; then
-      echo -e "\e[33m'$pkg' is installed by another part of your configuration,\nnot by omarchy-pkg-install. Remove it there instead.\e[0m" >&2
-    else
-      echo -e "\e[33m'$pkg' is not installed.\e[0m" >&2
-    fi
-    failed=1
-    continue
-  fi
-
-  sed -i "/^\s*\"${attr//./\\.}\"\s*$/d" "$list"
-  removed+=("$attr")
-  echo -e "\e[32mRemoved $attr\e[0m"
+  attrs+=("$attr")
 done
 
-if [[ ${#removed[@]} -eq 0 ]]; then
-  exit "$failed"
+echo
+echo "Remove from your configuration:"
+echo
+printf '    %s\n' "${attrs[@]}"
+echo
+echo "It is usually in environment.systemPackages or home.packages. Then rebuild:"
+echo
+if flake_dir="$(omarchy-nix-flake-dir 2>/dev/null)"; then
+  echo "  sudo nixos-rebuild switch --flake $flake_dir"
+else
+  echo "  sudo nixos-rebuild switch --flake <your-flake>"
 fi
-
-echo -e "\e[32m\nRebuilding\e[0m"
-sudo nixos-rebuild switch --flake "$flake_dir"
-exit "$failed"
+echo

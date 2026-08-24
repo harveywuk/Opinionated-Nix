@@ -104,18 +104,6 @@ lib: {
       default = {};
       description = "Office suite configuration";
     };
-    packages = lib.mkOption {
-      type = lib.types.listOf lib.types.str;
-      default = [];
-      example = ["helix" "nerd-fonts.meslo-lg"];
-      description = ''
-        Extra nixpkgs attribute names to install system-wide. Dotted paths are
-        resolved (e.g. "nerd-fonts.meslo-lg").
-
-        Managed by omarchy-pkg-install / omarchy-pkg-remove, which keep the list
-        in omarchy-packages.nix beside your flake. Safe to edit by hand.
-      '';
-    };
     chromium = lib.mkOption {
       type = lib.types.submodule {
         options = {

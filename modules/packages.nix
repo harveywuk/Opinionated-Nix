@@ -11,15 +11,6 @@
   omacalc = pkgs.callPackage ../packages/omacalc.nix {};
   cfg = config.omarchy;
 
-  # omarchy.packages holds nixpkgs attribute names as strings, so that
-  # omarchy-pkg-install can append to the list without generating Nix code.
-  # Dotted paths are supported; an unknown name fails at eval naming the
-  # package rather than with a bare "attribute missing".
-  resolvePackage = name:
-    lib.attrByPath (lib.splitString "." name)
-    (throw "omarchy.packages: '${name}' is not a nixpkgs attribute")
-    pkgs;
-  extraPackages = map resolvePackage cfg.packages;
 in {
   # Regular packages
   systemPackages = with pkgs;
@@ -177,8 +168,7 @@ in {
       # Qt Wayland and theming
       kdePackages.qtwayland
       qt5.qtwayland
-    ]
-    ++ extraPackages;
+    ];
 
   homePackages = with pkgs; [
   ];
