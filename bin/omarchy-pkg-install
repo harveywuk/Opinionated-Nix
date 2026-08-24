@@ -19,7 +19,18 @@
 
 set -euo pipefail
 
-[[ $# -gt 0 ]] || { echo "Usage: omarchy-pkg-install <package-name>..." >&2; exit 64; }
+# The menu's Install > Package entry calls this with no arguments and expects
+# to be asked. Only prompt when there is a terminal to prompt on.
+if [[ $# -eq 0 ]]; then
+  if [[ ! -t 0 ]]; then
+    echo "Usage: omarchy-pkg-install <package-name>..." >&2
+    exit 64
+  fi
+  echo "Search nixpkgs with: nix search nixpkgs <term>"
+  read -rp "Package to install: " -a pkgs
+  [[ ${#pkgs[@]} -gt 0 ]] || { echo "Nothing to do."; exit 0; }
+  set -- "${pkgs[@]}"
+fi
 
 flake_dir="$(omarchy-nix-flake-dir)"
 list="$flake_dir/omarchy-packages.nix"

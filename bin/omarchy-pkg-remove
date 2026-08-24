@@ -11,10 +11,24 @@
 
 set -euo pipefail
 
-[[ $# -gt 0 ]] || { echo "Usage: omarchy-pkg-remove <package-name>..." >&2; exit 64; }
-
 flake_dir="$(omarchy-nix-flake-dir)"
 list="$flake_dir/omarchy-packages.nix"
+
+# Called with no arguments from the menu's Remove > Package entry. Only what
+# this script put there can be removed, so that list is the whole menu.
+if [[ $# -eq 0 ]]; then
+  if [[ ! -t 0 ]]; then
+    echo "Usage: omarchy-pkg-remove <package-name>..." >&2
+    exit 64
+  fi
+  mapfile -t installed < <(grep -oE '^\s*"[^"]+"' "$list" 2>/dev/null | tr -d ' "')
+  [[ ${#installed[@]} -gt 0 ]] || { echo "No packages were installed by omarchy-pkg-install."; exit 0; }
+  echo "Installed by omarchy-pkg-install:"
+  printf '  %s\n' "${installed[@]}"
+  read -rp "Package to remove: " -a pkgs
+  [[ ${#pkgs[@]} -gt 0 ]] || { echo "Nothing to do."; exit 0; }
+  set -- "${pkgs[@]}"
+fi
 
 removed=()
 failed=0

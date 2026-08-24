@@ -186,7 +186,6 @@
 
   // Install
   "install.package": {"icon":"󰣇","label":"Package","action":"xdg-terminal-exec --app-id=org.omarchy.terminal omarchy-pkg-install"},
-  "install.aur": {"icon":"󰣇","label":"AUR","action":"xdg-terminal-exec --app-id=org.omarchy.terminal omarchy-pkg-aur-install"},
   "install.ai": {"icon":"󱚤","label":"AI"},
   "install.service": {"icon":"","label":"Service"},
   "install.development": {"icon":"󰵮","label":"Development"},
