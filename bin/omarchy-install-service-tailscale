@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# omarchy:summary=Install Tailscale
+# omarchy:requires-sudo=true
+# omarchy:examples=omarchy-install-service-tailscale
+
+# services.tailscale.enable, not just the package: the daemon and its unit come
+# from the option. Installing the binary alone would leave `tailscale up`
+# failing against a socket nothing is listening on.
+
+set -euo pipefail
+
+omarchy-opt-set services.tailscale.enable true
+
+echo -e "\e[33m\nTailscale is running. Authenticate with:\n  sudo tailscale up\e[0m"

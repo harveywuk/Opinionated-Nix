@@ -1,0 +1,97 @@
+#!/bin/bash
+
+# omarchy:summary=Resolve an Omarchy (Arch) package name to a nixpkgs attribute
+# omarchy:args=<package-name>
+# omarchy:examples=omarchy-pkg-map brave-bin | omarchy-pkg-map ttf-meslo-nerd
+
+# Omarchy's menu and install scripts speak Arch package names. Nixpkgs uses
+# different attribute names for most of them, so every package operation goes
+# through this table first.
+#
+# Exits 2 with a message on stderr when a package has no nixpkgs equivalent, so
+# callers can tell "not packaged" apart from "install failed". Attribute names
+# here were each checked against nixpkgs; do not add an entry without checking.
+
+set -euo pipefail
+
+case "${1-}" in
+  # --- browsers ---
+  google-chrome)              echo "google-chrome" ;;
+  microsoft-edge-stable-bin)  echo "microsoft-edge" ;;
+  brave-bin | brave-origin-bin) echo "brave" ;;
+  firefox)                    echo "firefox" ;;
+
+  # --- editors ---
+  visual-studio-code-bin)     echo "vscode" ;;
+  cursor-bin)                 echo "code-cursor" ;;
+  zed)                        echo "zed-editor" ;;
+  sublime-text-4)             echo "sublime4" ;;
+  helix)                      echo "helix" ;;
+  vim)                        echo "vim" ;;
+  omarchy-emacs)              echo "emacs" ;;
+
+  # --- terminals ---
+  alacritty)                  echo "alacritty" ;;
+  foot)                       echo "foot" ;;
+  ghostty)                    echo "ghostty" ;;
+  kitty)                      echo "kitty" ;;
+
+  # --- services ---
+  1password)                  echo "_1password-gui" ;;
+  bitwarden)                  echo "bitwarden-desktop" ;;
+  bitwarden-cli)              echo "bitwarden-cli" ;;
+  dropbox)                    echo "dropbox" ;;
+  signal-desktop)             echo "signal-desktop" ;;
+  spotify)                    echo "spotify" ;;
+  tailscale)                  echo "tailscale" ;;
+  nordvpn-bin)                echo "nordvpn" ;;
+
+  # --- ai ---
+  ollama)                     echo "ollama" ;;
+  ollama-cuda)                echo "ollama-cuda" ;;
+  ollama-rocm)                echo "ollama-rocm" ;;
+  lmstudio-bin)               echo "lmstudio" ;;
+
+  # --- gaming ---
+  steam)                      echo "steam" ;;
+  retroarch)                  echo "retroarch" ;;
+  lutris)                     echo "lutris" ;;
+  heroic-games-launcher-bin)  echo "heroic" ;;
+  minecraft-launcher)         echo "prismlauncher" ;;
+
+  # --- dev / system ---
+  php)                        echo "php" ;;
+  symfony-cli)                echo "symfony-cli" ;;
+  fprintd)                    echo "fprintd" ;;
+  pam-u2f)                    echo "pam_u2f" ;;
+
+  # Built by this repo (packages/voxtype.nix) and installed by the
+  # omarchy.voxtype option, not from nixpkgs -- so omarchy-voxtype-install
+  # toggles the option rather than calling omarchy-pkg-install. Mapped here so
+  # the menu's omarchy-pkg-present guard finds the binary once it is enabled.
+  voxtype-bin)                echo "voxtype" ;;
+
+  # --- nerd fonts ---
+  ttf-cascadia-mono-nerd)     echo "nerd-fonts.caskaydia-cove" ;;
+  ttf-meslo-nerd)             echo "nerd-fonts.meslo-lg" ;;
+  ttf-firacode-nerd)          echo "nerd-fonts.fira-code" ;;
+  ttf-victor-mono-nerd)       echo "nerd-fonts.victor-mono" ;;
+  ttf-bitstream-vera-mono-nerd) echo "nerd-fonts.bitstream-vera-sans-mono" ;;
+  ttf-iosevka-nerd)           echo "nerd-fonts.iosevka" ;;
+
+  # Not in nixpkgs at the time of writing. Listed explicitly so they report
+  # "not packaged" rather than silently falling through to a bad guess.
+  zen-browser-bin | xpadneo-dkms | grok-bot | once-bin | openai-codex-desktop | t3code-bin)
+    echo "omarchy-pkg-map: '$1' has no nixpkgs equivalent" >&2
+    exit 2
+    ;;
+
+  "")
+    echo "omarchy-pkg-map: no package name given" >&2
+    exit 64
+    ;;
+
+  # Unknown names pass through unchanged: many Arch and nixpkgs names already
+  # agree, and a wrong name fails loudly at install time anyway.
+  *) echo "$1" ;;
+esac

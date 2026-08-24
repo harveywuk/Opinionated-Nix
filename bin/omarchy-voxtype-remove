@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# omarchy:summary=Remove Voxtype voice dictation
+# omarchy:requires-sudo=true
+# omarchy:examples=omarchy-voxtype-remove
+
+set -euo pipefail
+
+exec omarchy-opt-unset omarchy.voxtype.enable

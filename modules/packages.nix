@@ -10,6 +10,7 @@
   ttfx = pkgs.callPackage ../packages/ttfx.nix {};
   omacalc = pkgs.callPackage ../packages/omacalc.nix {};
   cfg = config.omarchy;
+
 in {
   # Regular packages
   systemPackages = with pkgs;

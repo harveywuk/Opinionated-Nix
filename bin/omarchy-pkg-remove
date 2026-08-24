@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# omarchy:summary=Show how to remove packages from your configuration
+# omarchy:args=[package-name...]
+# omarchy:examples=omarchy-pkg-remove helix
+
+# The counterpart to omarchy-pkg-install, and equally hands-off: a package is
+# installed because your configuration says so, so it goes away when your
+# configuration stops saying so. Nothing here can do that for you without
+# guessing which file to edit.
+
+set -euo pipefail
+
+if [[ $# -eq 0 ]]; then
+  if [[ ! -t 0 ]]; then
+    echo "Usage: omarchy-pkg-remove <package-name>..." >&2
+    exit 64
+  fi
+  read -rp "Package: " -a pkgs
+  [[ ${#pkgs[@]} -gt 0 ]] || { echo "Nothing to do."; exit 0; }
+  set -- "${pkgs[@]}"
+fi
+
+attrs=()
+for pkg in "$@"; do
+  attr="$(omarchy-pkg-map "$pkg" 2>/dev/null)" || attr="$pkg"
+  attrs+=("$attr")
+done
+
+echo
+echo "Remove from your configuration:"
+echo
+printf '    %s\n' "${attrs[@]}"
+echo
+echo "It is usually in environment.systemPackages or home.packages. Then rebuild:"
+echo
+if flake_dir="$(omarchy-nix-flake-dir 2>/dev/null)"; then
+  echo "  sudo nixos-rebuild switch --flake $flake_dir"
+else
+  echo "  sudo nixos-rebuild switch --flake <your-flake>"
+fi
+echo

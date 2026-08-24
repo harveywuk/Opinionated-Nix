@@ -1,0 +1,33 @@
+#!/bin/bash
+
+# omarchy:summary=Map a gaming component to its omarchy option path
+# omarchy:args=<component>
+# omarchy:examples=omarchy-gaming-component steam
+
+# Emits full NixOS option paths, which is what omarchy-opt-set takes.
+# Shared by the omarchy-install-gaming-* / omarchy-remove-gaming-* wrappers.
+# These are options rather than packages because the option does more than
+# install: gaming.steam also enables programs.steam, Proton-GE and the Remote
+# Play firewall openings, and gaming.xboxControllers loads xpadneo. Installing
+# the bare package would silently skip all of that.
+
+set -euo pipefail
+
+case "${1-}" in
+  steam)            echo "omarchy.gaming.steam.enable" ;;
+  heroic)           echo "omarchy.gaming.heroic.enable" ;;
+  lutris)           echo "omarchy.gaming.lutris.enable" ;;
+  retroarch)        echo "omarchy.gaming.retroarch.enable" ;;
+  moonlight)        echo "omarchy.gaming.moonlight.enable" ;;
+  xbox-cloud)       echo "omarchy.gaming.xboxCloud.enable" ;;
+  geforce-now)      echo "omarchy.gaming.geforceNow.enable" ;;
+  xbox-controllers) echo "omarchy.gaming.xboxControllers.enable" ;;
+  "")
+    echo "omarchy-gaming-component: no component given" >&2
+    exit 64
+    ;;
+  *)
+    echo "omarchy-gaming-component: unknown component '$1'" >&2
+    exit 2
+    ;;
+esac

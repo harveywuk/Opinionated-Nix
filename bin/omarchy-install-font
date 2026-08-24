@@ -1,0 +1,34 @@
+#!/bin/bash
+
+# omarchy:summary=Set a font as the system monospace font, or show how to install it
+# omarchy:args=<display-name> <package> <font-family>
+# omarchy:examples=omarchy-install-font 'Meslo LG Mono' ttf-meslo-nerd 'MesloLGL Nerd Font'
+
+# Setting the font is a real action on a user-owned file, so that half still
+# happens. Installing the font is a configuration change, so that half is shown
+# rather than done -- see omarchy-pkg-install.
+
+set -euo pipefail
+
+name="${1-}"
+package="${2-}"
+family="${3-}"
+[[ -n $name && -n $package && -n $family ]] || {
+  echo "Usage: omarchy-install-font <display-name> <package> <font-family>" >&2
+  exit 64
+}
+
+# omarchy-pkg-present rather than a direct fc-list grep: the family fontconfig
+# reports and the name here rarely match exactly (nixpkgs nerd-fonts.caskaydia-cove
+# ships "CaskaydiaMono Nerd Font"), and that mismatch is already handled there.
+if omarchy-pkg-present "$package" >/dev/null 2>&1; then
+  echo -e "\e[32mSetting monospace font to $family\e[0m"
+  exec omarchy-font-set "$family"
+fi
+
+echo -e "\e[33m$name is not installed.\e[0m"
+omarchy-pkg-install "$package"
+echo "Once it is installed, set it with:"
+echo
+echo "  omarchy-font-set '$family'"
+echo

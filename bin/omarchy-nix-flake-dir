@@ -1,0 +1,45 @@
+#!/bin/bash
+
+# omarchy:summary=Print the directory holding this system's flake.nix
+# omarchy:examples=omarchy-nix-flake-dir
+
+# Anything that writes to the configuration needs to know where it lives, and
+# guessing wrong means editing someone else's file and rebuilding something
+# that is not their system. A stale /etc/nixos left beside a live
+# ~/nixos-config is a real and common shape, so ambiguity is refused rather
+# than resolved by precedence -- there is no ordering that is right for
+# everyone, and being quietly wrong here is much worse than asking.
+
+set -euo pipefail
+
+if [[ -n ${OMARCHY_NIX_FLAKE:-} ]]; then
+  if [[ ! -f $OMARCHY_NIX_FLAKE/flake.nix ]]; then
+    echo "OMARCHY_NIX_FLAKE is set to '$OMARCHY_NIX_FLAKE' but there is no flake.nix there." >&2
+    exit 1
+  fi
+  printf '%s\n' "$OMARCHY_NIX_FLAKE"
+  exit 0
+fi
+
+candidates=()
+for dir in /etc/nixos "$HOME/nixos-config" "$HOME/.config/nixos" "$HOME/nixos"; do
+  [[ -f $dir/flake.nix ]] && candidates+=("$dir")
+done
+
+case ${#candidates[@]} in
+  1)
+    printf '%s\n' "${candidates[0]}"
+    ;;
+  0)
+    echo "No flake.nix found in /etc/nixos, ~/nixos-config, ~/.config/nixos or ~/nixos." >&2
+    echo "Set OMARCHY_NIX_FLAKE to the directory holding your flake.nix." >&2
+    exit 1
+    ;;
+  *)
+    echo "Found more than one candidate configuration:" >&2
+    printf '  %s\n' "${candidates[@]}" >&2
+    echo "Refusing to guess which one is yours." >&2
+    echo "Set OMARCHY_NIX_FLAKE to the right one." >&2
+    exit 1
+    ;;
+esac

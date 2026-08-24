@@ -1,0 +1,29 @@
+#!/bin/bash
+
+# omarchy:summary=Launch an application, or show how to install it
+# omarchy:args=<display-name> <packages> <binary>
+# omarchy:examples=omarchy-install-and-launch Cursor cursor-bin cursor
+
+# Upstream installs then launches. Nothing here installs (see
+# omarchy-pkg-install), so this launches when the application is already there
+# and otherwise shows what to add. The launch half is still worth having: it is
+# the part that does something.
+
+set -euo pipefail
+
+name="${1-}"
+packages="${2-}"
+binary="${3-}"
+[[ -n $name && -n $packages && -n $binary ]] || {
+  echo "Usage: omarchy-install-and-launch <display-name> <packages> <binary>" >&2
+  exit 64
+}
+
+if command -v "$binary" >/dev/null 2>&1; then
+  echo -e "\e[32mLaunching $name\e[0m"
+  exec setsid uwsm-app -- "$binary"
+fi
+
+echo -e "\e[33m$name is not installed.\e[0m"
+read -ra pkgs <<<"$packages"
+exec omarchy-pkg-install "${pkgs[@]}"

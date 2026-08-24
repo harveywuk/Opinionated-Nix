@@ -1,0 +1,70 @@
+#!/bin/bash
+
+# omarchy:summary=Create a desktop launcher for a terminal UI application
+# omarchy:args=[name] [command] [icon-name]
+# omarchy:examples=omarchy-tui-install | omarchy-tui-install btop btop btop
+
+# Creates only a .desktop launcher -- no package is installed. The command has
+# to already exist, which on NixOS means it came from the configuration.
+#
+# The Exec line deliberately spells out `xdg-terminal-exec ... -e` rather than
+# delegating to omarchy-launch-tui: omarchy-tui-remove and the menu's
+# remove.tui guard both find TUIs by matching that form, so a launcher written
+# any other way would be invisible to them.
+
+set -e
+
+DESKTOP_DIR="$HOME/.local/share/applications"
+INTERACTIVE_MODE=false
+
+safe_icon_name() {
+  printf '%s\n' "$1" \
+    | tr '[:upper:]' '[:lower:]' \
+    | sed 's/[^[:alnum:]]\+/-/g; s/^-//; s/-$//'
+}
+
+if (($# == 0)); then
+  INTERACTIVE_MODE=true
+  APP_NAME=$(gum input --prompt "Name> " --placeholder "btop")
+  APP_CMD=$(gum input --prompt "Command> " --placeholder "btop")
+  ICON_REF=$(gum input --prompt "Icon name> " --placeholder "Leave blank to use the name")
+else
+  APP_NAME="${1:-}"
+  APP_CMD="${2:-}"
+  ICON_REF="${3:-}"
+fi
+
+if [[ -z $APP_NAME || -z $APP_CMD ]]; then
+  echo "You must set a name and a command!" >&2
+  exit 1
+fi
+
+# The launcher would appear and then fail silently at click time otherwise.
+if ! command -v "${APP_CMD%% *}" >/dev/null 2>&1; then
+  echo -e "\e[31m'${APP_CMD%% *}' is not on PATH.\e[0m" >&2
+  echo "Install it first, then create the launcher." >&2
+  exit 1
+fi
+
+[[ -n $ICON_REF ]] || ICON_REF=$(safe_icon_name "$APP_NAME")
+
+mkdir -p "$DESKTOP_DIR"
+DESKTOP_FILE="$DESKTOP_DIR/$APP_NAME.desktop"
+
+cat >"$DESKTOP_FILE" <<EOF
+[Desktop Entry]
+Version=1.0
+Name=$APP_NAME
+Comment=$APP_NAME
+Exec=xdg-terminal-exec --app-id=org.omarchy.$(safe_icon_name "$APP_NAME") -e $APP_CMD
+Terminal=false
+Type=Application
+Icon=$ICON_REF
+StartupNotify=true
+EOF
+
+chmod +x "$DESKTOP_FILE"
+
+if [[ $INTERACTIVE_MODE == "true" ]]; then
+  echo -e "You can now find $APP_NAME using the app launcher (SUPER + SPACE)\n"
+fi

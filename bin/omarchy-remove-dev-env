@@ -1,0 +1,46 @@
+#!/bin/bash
+
+# omarchy:summary=Remove a development environment
+# omarchy:args=<language-or-framework>
+# omarchy:requires-sudo=true
+# omarchy:examples=omarchy-remove-dev-env python
+
+set -euo pipefail
+
+env_name="${1-}"
+[[ -n $env_name ]] || { echo "Usage: omarchy-remove-dev-env <language>" >&2; exit 64; }
+
+# Checked explicitly: a failed command substitution inside a here-string does
+# not trip `set -e`, so an unknown environment would otherwise sail past with
+# an empty package list.
+if ! packages_raw="$(omarchy-dev-env-packages "$env_name")"; then
+  exit 2
+fi
+read -ra packages <<<"$packages_raw"
+
+# Languages overlap: php backs laravel and symfony, elixir backs phoenix. Only
+# remove what nothing else still declared is using, or removing Laravel would
+# silently take Symfony's PHP with it.
+keep=()
+for other in ruby go python node bun deno rust java dotnet zig clojure scala ocaml elixir phoenix php laravel symfony; do
+  [[ $other != "$env_name" ]] || continue
+  for p in $(omarchy-dev-env-packages "$other" 2>/dev/null); do
+    omarchy-pkg-present "$p" >/dev/null 2>&1 && keep+=("$p")
+  done
+done
+
+remove=()
+for p in "${packages[@]}"; do
+  skip=0
+  for k in "${keep[@]-}"; do [[ $k == "$p" ]] && skip=1 && break; done
+  if [[ $skip -eq 1 ]]; then
+    echo -e "\e[33mKeeping $p -- another installed environment uses it.\e[0m"
+  else
+    remove+=("$p")
+  fi
+done
+
+[[ ${#remove[@]} -gt 0 ]] || { echo "Nothing to remove."; exit 0; }
+
+echo -e "\e[32mRemoving $env_name: ${remove[*]}\e[0m"
+omarchy-pkg-remove "${remove[@]}"

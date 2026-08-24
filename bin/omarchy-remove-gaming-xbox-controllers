@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# omarchy:summary=Remove Xbox controller support
+# omarchy:requires-sudo=true
+# omarchy:examples=omarchy-remove-gaming-xbox-controllers
+
+# Toggles omarchy.gaming.xboxControllers.enable rather than installing a package: the
+# option carries the supporting configuration too. See
+# omarchy-gaming-component.
+
+set -euo pipefail
+
+exec omarchy-opt-unset "$(omarchy-gaming-component xbox-controllers)"

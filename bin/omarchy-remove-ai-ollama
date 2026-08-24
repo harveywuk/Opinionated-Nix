@@ -1,0 +1,23 @@
+#!/bin/bash
+
+# omarchy:summary=Remove Ollama
+# omarchy:requires-sudo=true
+# omarchy:examples=omarchy-remove-ai-ollama
+
+# The menu installs whichever variant suits the GPU (ollama-cuda, ollama-rocm,
+# or plain ollama), so removal has to consider all three rather than assuming
+# the one this machine would install today -- the GPU may have changed since.
+
+set -euo pipefail
+
+removed=0
+for variant in ollama ollama-cuda ollama-rocm; do
+  if omarchy-pkg-present "$variant" >/dev/null 2>&1; then
+    omarchy-pkg-remove "$variant" && removed=1
+  fi
+done
+
+if [[ $removed -eq 0 ]]; then
+  echo -e "\e[33mOllama is not installed.\e[0m" >&2
+  exit 1
+fi

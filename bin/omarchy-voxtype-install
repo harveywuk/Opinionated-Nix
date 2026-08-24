@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# omarchy:summary=Install Voxtype voice dictation
+# omarchy:requires-sudo=true
+# omarchy:examples=omarchy-voxtype-install
+
+# omarchy.voxtype.enable rather than a package install: the option also creates
+# the /usr/lib/voxtype and libvulkan.so.1 symlinks voxtype hardcodes, and turns
+# on hardware.graphics for GPU acceleration. The package alone would install a
+# binary that cannot find its own runtime.
+
+set -euo pipefail
+
+exec omarchy-opt-set omarchy.voxtype.enable true

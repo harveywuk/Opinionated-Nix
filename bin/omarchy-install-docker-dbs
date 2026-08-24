@@ -1,0 +1,39 @@
+#!/bin/bash
+
+# omarchy:summary=Install development databases in Docker
+# omarchy:args=[database...]
+# omarchy:examples=omarchy-install-docker-dbs | omarchy-install-docker-dbs postgres redis
+
+# Menu-facing front end for omarchy-docker-dbs, which already does the work.
+#
+# These stay imperative `docker run` containers rather than becoming
+# virtualisation.oci-containers entries: upstream treats them as throwaway
+# development databases you start, use and delete, and moving them into the
+# system configuration would make each one a rebuild. Deviating here would cost
+# more than it gained.
+
+set -euo pipefail
+
+DATABASES=(postgres mysql mariadb redis mongodb mssql)
+
+if ! command -v docker >/dev/null 2>&1; then
+  echo -e "\e[31mDocker is not available.\e[0m" >&2
+  echo "Enable it in your configuration (virtualisation.docker.enable = true)" >&2
+  echo "and make sure your user is in the 'docker' group." >&2
+  exit 1
+fi
+
+if (($# > 0)); then
+  exec omarchy-docker-dbs "$@"
+fi
+
+if command -v gum >/dev/null 2>&1; then
+  mapfile -t chosen < <(gum choose --no-limit --header "Select databases to install" "${DATABASES[@]}")
+else
+  echo "Available: ${DATABASES[*]}"
+  read -rp "Databases to install: " -a chosen
+fi
+
+((${#chosen[@]})) || { echo "Nothing selected."; exit 0; }
+
+exec omarchy-docker-dbs "${chosen[@]}"

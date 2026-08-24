@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# omarchy:summary=Install NordVPN
+# omarchy:requires-sudo=true
+# omarchy:examples=omarchy-install-service-nordvpn
+
+# services.nordvpn.enable, not just the package: the option brings the daemon
+# and the group the CLI needs to talk to it.
+
+set -euo pipefail
+
+omarchy-opt-set services.nordvpn.enable true
+
+echo -e "\e[33m\nNordVPN is running. Log in with:\n  nordvpn login\e[0m"

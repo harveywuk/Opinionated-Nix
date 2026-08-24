@@ -4,23 +4,12 @@
   lib,
   ...
 }: let
-  # Upstream skel (config/hypr/hyprsunset.conf). Seeded once as a user-owned
-  # file: Setup > Config > Hyprsunset edits it and omarchy-restart-hyprsunset
-  # applies it, so it must not be a read-only store symlink.
-  hyprsunsetConf = ''
-    # Makes hyprsunset do nothing to the screen by default
-    # Without this, the default applies some tint to the monitor
-    profile {
-        time = 07:00
-        identity = true
-    }
-
-    # To enable auto switch to nightlight, uncomment the following:
-    # profile {
-    #     time = 20:00
-    #     temperature = 4000
-    # }
-  '';
+  # Upstream skel, kept at upstream's path (config/hypr/hyprsunset.conf) so
+  # omarchy-refresh-hyprsunset can restore it through omarchy-refresh-config
+  # like every other refreshable config. Seeded once as a user-owned file:
+  # Setup > Config > Hyprsunset edits it and omarchy-restart-hyprsunset applies
+  # it, so it must not be a read-only store symlink.
+  hyprsunsetConf = builtins.readFile ../../config/hypr/hyprsunset.conf;
 in {
   # Hyprsunset - Blue light filter with manual toggle support
   # Default configuration disables automatic tinting

@@ -1,0 +1,61 @@
+#!/bin/bash
+
+# omarchy:summary=Show how to add packages to your configuration
+# omarchy:args=[package-name...]
+# omarchy:examples=omarchy-pkg-install | omarchy-pkg-install ghostty helix
+
+# Upstream installs imperatively (`yay -S`). This deliberately does not install
+# anything, and does not edit your configuration either.
+#
+# Editing it would mean locating it first, and that cannot be done reliably --
+# a stale /etc/nixos beside a live ~/nixos-config is a common shape, multi-host
+# flakes have no single answer, and being wrong means rebuilding something that
+# is not your system. The rebuild also costs minutes, so the "click it and it is
+# installed" feel this imitates does not survive the translation anyway.
+#
+# What is worth keeping is the name translation: Arch and nixpkgs disagree about
+# what most packages are called, and that is real knowledge. So it resolves the
+# names and shows exactly what to add.
+#
+# Options are different and are still set for you -- see omarchy-opt-set. An
+# option like omarchy.gaming.steam.enable carries supporting configuration
+# (programs.steam, Proton-GE, firewall openings) that a package name does not,
+# so a script that knows it is worth having.
+
+set -euo pipefail
+
+if [[ $# -eq 0 ]]; then
+  if [[ ! -t 0 ]]; then
+    echo "Usage: omarchy-pkg-install <package-name>..." >&2
+    exit 64
+  fi
+  echo "Search nixpkgs with: nix search nixpkgs <term>"
+  read -rp "Package: " -a pkgs
+  [[ ${#pkgs[@]} -gt 0 ]] || { echo "Nothing to do."; exit 0; }
+  set -- "${pkgs[@]}"
+fi
+
+attrs=()
+for pkg in "$@"; do
+  if attr="$(omarchy-pkg-map "$pkg")"; then
+    attrs+=("$attr")
+  fi
+done
+
+[[ ${#attrs[@]} -gt 0 ]] || exit 1
+
+echo
+echo "Add to your configuration:"
+echo
+echo "  environment.systemPackages = with pkgs; ["
+printf '    %s\n' "${attrs[@]}"
+echo "  ];"
+echo
+echo "Then rebuild:"
+echo
+if flake_dir="$(omarchy-nix-flake-dir 2>/dev/null)"; then
+  echo "  sudo nixos-rebuild switch --flake $flake_dir"
+else
+  echo "  sudo nixos-rebuild switch --flake <your-flake>"
+fi
+echo

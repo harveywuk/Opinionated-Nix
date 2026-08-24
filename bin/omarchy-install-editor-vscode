@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# omarchy:summary=Install VSCode
+# omarchy:requires-sudo=true
+# omarchy:examples=omarchy-install-editor-vscode
+
+set -euo pipefail
+
+exec omarchy-install-app 'VSCode' visual-studio-code-bin
