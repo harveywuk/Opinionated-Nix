@@ -1,0 +1,38 @@
+#!/bin/bash
+
+# omarchy:summary=Enable Google account sign-in in Chromium
+# omarchy:requires-sudo=true
+# omarchy:examples=omarchy-install-chromium-google-account
+
+# Upstream patches --oauth2-client-id into ~/.config/chromium-flags.conf. That
+# file is generated here (xdg.configFile in chromium.nix) and is a read-only
+# link into the nix store, so it cannot be patched. The credentials go into the
+# configuration instead, via omarchy.chromium.oauth2_client_id.
+
+set -euo pipefail
+
+cat <<'MESSAGE'
+Google sign-in needs OAuth2 credentials from a Google Cloud project:
+
+  console.cloud.google.com -> APIs & Services -> Credentials
+  Create an OAuth client ID of type "Desktop app".
+
+These are written into your configuration, which is usually a git repo. A
+Chromium desktop client secret is not a high-value credential -- one ships
+inside every copy of the browser -- but do not publish it needlessly.
+
+MESSAGE
+
+read -rp "OAuth2 client id: " client_id
+[[ -n $client_id ]] || { echo "Nothing entered; cancelled."; exit 0; }
+read -rp "OAuth2 client secret: " client_secret
+
+# --no-rebuild on the first of a pair, so setting both costs one rebuild.
+if [[ -n $client_secret ]]; then
+  omarchy-opt-set --no-rebuild omarchy.chromium.oauth2_client_id "\"$client_id\""
+  omarchy-opt-set omarchy.chromium.oauth2_client_secret "\"$client_secret\""
+else
+  omarchy-opt-set omarchy.chromium.oauth2_client_id "\"$client_id\""
+fi
+
+echo -e "\e[33m\nRestart Chromium for the change to take effect.\e[0m"

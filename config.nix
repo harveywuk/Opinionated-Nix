@@ -116,6 +116,32 @@ lib: {
         in omarchy-packages.nix beside your flake. Safe to edit by hand.
       '';
     };
+    chromium = lib.mkOption {
+      type = lib.types.submodule {
+        options = {
+          oauth2_client_id = lib.mkOption {
+            type = lib.types.str;
+            default = "";
+            description = ''
+              OAuth2 client id passed to Chromium so Google account sign-in
+              works in an unbranded build. Empty leaves the flag off.
+
+              Note this ends up in your configuration, which is usually in git.
+              A Chromium desktop client secret is not a high-value credential --
+              it ships inside every copy of the browser -- but treat it as
+              something you would rather not publish.
+            '';
+          };
+          oauth2_client_secret = lib.mkOption {
+            type = lib.types.str;
+            default = "";
+            description = "OAuth2 client secret paired with oauth2_client_id.";
+          };
+        };
+      };
+      default = {};
+      description = "Chromium configuration";
+    };
     gaming = lib.mkOption {
       type = lib.types.submodule ({config, ...}: {
         options = {

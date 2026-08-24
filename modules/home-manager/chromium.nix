@@ -40,6 +40,15 @@
     # Chromium crash workaround for Wayland color management on Hyprland
     # See https://github.com/hyprwm/Hyprland/issues/11957
     --disable-features=WaylandWpColorManagerV1
+  ''
+  # Google account sign-in needs OAuth2 credentials in an unbranded build.
+  # Upstream patches these into the user's chromium-flags.conf; here the file is
+  # generated, so they come from the option instead.
+  + lib.optionalString (config.omarchy.chromium.oauth2_client_id != "") ''
+    --oauth2-client-id=${config.omarchy.chromium.oauth2_client_id}
+  ''
+  + lib.optionalString (config.omarchy.chromium.oauth2_client_secret != "") ''
+    --oauth2-client-secret=${config.omarchy.chromium.oauth2_client_secret}
   '';
 
   # Chromium preferences for dark mode

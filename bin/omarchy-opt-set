@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # omarchy:summary=Set an omarchy option in the configuration and rebuild
-# omarchy:args=<option-path> <value>
+# omarchy:args=[--no-rebuild] <option-path> <value>
 # omarchy:requires-sudo=true
 # omarchy:examples=omarchy-opt-set omarchy.gaming.steam.enable true | omarchy-opt-set services.openssh.enable true
 
@@ -21,6 +21,13 @@
 #     modules = [ ./omarchy-options.nix ... ];
 
 set -euo pipefail
+
+# Setting several related options should cost one rebuild, not one each.
+rebuild=true
+if [[ ${1-} == "--no-rebuild" ]]; then
+  rebuild=false
+  shift
+fi
 
 path="${1-}"
 value="${2-}"
@@ -59,5 +66,7 @@ if git -C "$flake_dir" rev-parse --git-dir >/dev/null 2>&1; then
   git -C "$flake_dir" add "$file" 2>/dev/null || true
 fi
 
-echo -e "\e[32m\nRebuilding\e[0m"
-sudo nixos-rebuild switch --flake "$flake_dir"
+if [[ $rebuild == "true" ]]; then
+  echo -e "\e[32m\nRebuilding\e[0m"
+  sudo nixos-rebuild switch --flake "$flake_dir"
+fi
