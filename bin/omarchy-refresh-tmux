@@ -1,0 +1,29 @@
+#!/bin/bash
+
+# omarchy:summary=Explain how to restore the default tmux config on NixOS.
+
+# Upstream copies the shipped tmux.conf over the user's. That cannot work here:
+# ~/.config/tmux/tmux.conf is a read-only symlink into the nix store, written by
+# programs.tmux.extraConfig. There is no user copy to overwrite -- and copying
+# over the symlink would replace it with a plain file that home-manager then
+# collides with on the next rebuild.
+#
+# So this explains the model rather than pretending to perform the operation.
+
+set -euo pipefail
+
+cat <<'MESSAGE'
+Your tmux config comes from your flake, not from a file you edit here.
+
+  ~/.config/tmux/tmux.conf is a read-only link into the nix store,
+  generated from programs.tmux.extraConfig.
+
+It is already the shipped default, so there is nothing to restore. To
+change it, edit the source and rebuild:
+
+  config/tmux/tmux.conf        in your omarchy-nix checkout
+  sudo nixos-rebuild switch --flake <your-flake>
+
+To add settings without forking omarchy-nix, set programs.tmux.extraConfig
+in your own home-manager configuration; it merges with the shipped config.
+MESSAGE
