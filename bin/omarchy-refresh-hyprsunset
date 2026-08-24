@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# omarchy:summary=Restore the default hyprsunset config and apply it.
+
+set -euo pipefail
+
+omarchy-refresh-config hypr/hyprsunset.conf
+omarchy-restart-hyprsunset
