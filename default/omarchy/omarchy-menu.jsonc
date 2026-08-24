@@ -248,7 +248,6 @@
   "install.gaming.battlenet": {"icon":"","label":"Battle.net","disabled":"[[ -d $HOME/Games/battlenet ]]","action":"omarchy-launch-floating-terminal-with-presentation omarchy-install-gaming-battlenet"},
   "install.gaming.lutris": {"icon":"","label":"Lutris","disabled":"omarchy-pkg-present lutris","action":"omarchy-launch-floating-terminal-with-presentation omarchy-install-gaming-lutris"},
   "install.gaming.heroic": {"icon":"󱓟","label":"Heroic (Epic Games)","disabled":"omarchy-pkg-present heroic-games-launcher-bin","action":"omarchy-launch-floating-terminal-with-presentation omarchy-install-gaming-heroic"},
-  "install.gaming.retro-launcher": {"icon":"󰯉","label":"RetroArch Game Launcher","action":"omarchy-games-retro-install"},
   "install.development.rails": {"icon":"󰫏","label":"Ruby on Rails","disabled":"omarchy-pkg-present ruby","action":"omarchy-launch-floating-terminal-with-presentation 'omarchy-install-dev-env ruby'"},
   "install.development.docker-dbs": {"icon":"","label":"Docker DB","action":"omarchy-launch-floating-terminal-with-presentation omarchy-install-docker-dbs"},
   "install.development.javascript": {"icon":"","label":"JavaScript"},
