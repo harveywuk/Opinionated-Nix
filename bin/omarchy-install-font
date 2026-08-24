@@ -1,0 +1,25 @@
+#!/bin/bash
+
+# omarchy:summary=Install a font and make it the system monospace font
+# omarchy:args=<display-name> <package> <font-family>
+# omarchy:requires-sudo=true
+# omarchy:examples=omarchy-install-font 'Meslo LG Mono' ttf-meslo-nerd 'MesloLGL Nerd Font'
+
+set -euo pipefail
+
+name="${1-}"
+package="${2-}"
+family="${3-}"
+[[ -n $name && -n $package && -n $family ]] || {
+  echo "Usage: omarchy-install-font <display-name> <package> <font-family>" >&2
+  exit 64
+}
+
+omarchy-install-app "$name" "$package"
+
+# fontconfig only sees the font once the rebuild has linked it into the font
+# path, so refresh the cache before asking omarchy-font-set to find it.
+fc-cache --force >/dev/null 2>&1 || true
+
+echo -e "\e[32mSetting monospace font to $family\e[0m"
+omarchy-font-set "$family"

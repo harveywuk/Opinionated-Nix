@@ -1,0 +1,29 @@
+#!/bin/bash
+
+# omarchy:summary=Install an application and launch it
+# omarchy:args=<display-name> <packages> <binary>
+# omarchy:requires-sudo=true
+# omarchy:examples=omarchy-install-and-launch Cursor cursor-bin cursor
+
+set -euo pipefail
+
+name="${1-}"
+packages="${2-}"
+binary="${3-}"
+[[ -n $name && -n $packages && -n $binary ]] || {
+  echo "Usage: omarchy-install-and-launch <display-name> <packages> <binary>" >&2
+  exit 64
+}
+
+omarchy-install-app "$name" "$packages"
+
+# The rebuild has to have finished before the binary exists, which it has --
+# omarchy-install-app only returns after nixos-rebuild switch.
+if ! command -v "$binary" >/dev/null 2>&1; then
+  echo -e "\e[31m$name was installed but '$binary' is not on PATH.\e[0m" >&2
+  echo "The package may name its binary differently; launch it from the app menu." >&2
+  exit 1
+fi
+
+echo -e "\e[32mLaunching $name\e[0m"
+exec setsid uwsm-app -- "$binary"

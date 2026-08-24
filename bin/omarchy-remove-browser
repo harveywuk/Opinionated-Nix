@@ -1,0 +1,22 @@
+#!/bin/bash
+
+# omarchy:summary=Remove a browser
+# omarchy:args=[chromium|chrome|brave|brave-origin|edge|firefox|zen]
+# omarchy:requires-sudo=true
+# omarchy:examples=omarchy-remove-browser edge
+
+set -euo pipefail
+
+case "${1-}" in
+  chromium)     package="chromium" ;;
+  chrome)       package="google-chrome" ;;
+  brave)        package="brave-bin" ;;
+  brave-origin) package="brave-origin-bin" ;;
+  edge)         package="microsoft-edge-stable-bin" ;;
+  firefox)      package="firefox" ;;
+  zen)          package="zen-browser-bin" ;;
+  "")  echo "Usage: omarchy-remove-browser <browser>" >&2; exit 64 ;;
+  *)   echo "omarchy-remove-browser: unknown browser '$1'" >&2; exit 2 ;;
+esac
+
+omarchy-pkg-remove "$package"

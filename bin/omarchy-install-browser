@@ -1,0 +1,26 @@
+#!/bin/bash
+
+# omarchy:summary=Install a browser
+# omarchy:args=[chromium|chrome|brave|brave-origin|edge|firefox|zen]
+# omarchy:requires-sudo=true
+# omarchy:examples=omarchy-install-browser firefox
+
+# Called by omarchy-default-browser --install, which sets the default itself
+# once this returns. Browser ids map to the package names omarchy-pkg-map
+# already knows, so nixpkgs attributes stay defined in exactly one place.
+
+set -euo pipefail
+
+case "${1-}" in
+  chromium)     package="chromium" ;;
+  chrome)       package="google-chrome" ;;
+  brave)        package="brave-bin" ;;
+  brave-origin) package="brave-origin-bin" ;;
+  edge)         package="microsoft-edge-stable-bin" ;;
+  firefox)      package="firefox" ;;
+  zen)          package="zen-browser-bin" ;;
+  "")  echo "Usage: omarchy-install-browser <browser>" >&2; exit 64 ;;
+  *)   echo "omarchy-install-browser: unknown browser '$1'" >&2; exit 2 ;;
+esac
+
+omarchy-install-app "$1" "$package"

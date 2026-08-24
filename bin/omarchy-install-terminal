@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# omarchy:summary=Install a terminal emulator
+# omarchy:args=[alacritty|foot|ghostty|kitty]
+# omarchy:requires-sudo=true
+# omarchy:examples=omarchy-install-terminal kitty
+
+# Called by omarchy-default-terminal --install, which sets the default itself
+# once this returns.
+
+set -euo pipefail
+
+case "${1-}" in
+  alacritty | foot | ghostty | kitty) package="$1" ;;
+  "")  echo "Usage: omarchy-install-terminal <terminal>" >&2; exit 64 ;;
+  *)   echo "omarchy-install-terminal: unknown terminal '$1'" >&2; exit 2 ;;
+esac
+
+omarchy-install-app "$1" "$package"

@@ -1,0 +1,20 @@
+#!/bin/bash
+
+# omarchy:summary=Install an application by name
+# omarchy:args=<display-name> <package>...
+# omarchy:requires-sudo=true
+# omarchy:examples=omarchy-install-app Vim vim | omarchy-install-app 'LM Studio' lmstudio-bin
+
+# The menu passes packages either as separate arguments or as one
+# space-separated string ('bitwarden bitwarden-cli'), so flatten both forms.
+
+set -euo pipefail
+
+name="${1-}"
+shift || true
+[[ -n $name && $# -gt 0 ]] || { echo "Usage: omarchy-install-app <display-name> <package>..." >&2; exit 64; }
+
+read -ra packages <<<"$*"
+
+echo -e "\e[32mInstalling $name\e[0m"
+omarchy-pkg-install "${packages[@]}"
