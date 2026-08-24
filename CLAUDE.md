@@ -105,6 +105,24 @@ When implementing features:
 - ✅ Basecamp logo asset (commit `8075b8b`): refreshed `config/webapp-icons/Basecamp.png` from the upstream v5-release asset (66k → 151k).
 
 **Remaining gaps from this sync (intentional)**:
+
+> **Nuance since the `port/nix-package-workflow` branch.** The installer scripts
+> listed below now exist again, but they do **not** install anything and do
+> **not** edit your configuration — they resolve the Arch package name to its
+> nixpkgs attribute and print what to add, then you rebuild. They exist because
+> the menu invokes them by name: while they were absent, `Install > Package` and
+> friends called a command that did not exist, which crashed the terminal rather
+> than failing politely. The declarative decision below still stands; the scripts
+> are the polite failure, plus the name translation, which is the one part a user
+> cannot guess.
+>
+> The exception is entries backed by an option — gaming, voxtype, sshd,
+> tailscale, nordvpn, Chromium sign-in. Those *are* written for you, via
+> `omarchy-opt-set`, because the option carries supporting configuration a
+> package name does not (`omarchy.gaming.steam.enable` also brings
+> `programs.steam`, Proton-GE and the Remote Play firewall openings). The
+> knowledge is what justifies the write.
+
 - `omarchy-install-{browser,terminal,zed,helix,gaming-retroarch}`, `-remove-{browser,gaming-retroarch}`: Arch-only installers; declarative path on Nix.
 - `omarchy-pkg-add` / `omarchy-update-keyring` / `omarchy-reinstall-git` / `omarchy-refresh-applications`: keep prior Nix-deviating stubs; no upstream merge.
 - `omarchy-voxtype-install`: relies on `omarchy-pkg-add` + `voxtype setup systemd`; both already covered declaratively.
