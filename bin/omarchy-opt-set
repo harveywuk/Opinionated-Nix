@@ -3,12 +3,16 @@
 # omarchy:summary=Set an omarchy option in the configuration and rebuild
 # omarchy:args=<option-path> <value>
 # omarchy:requires-sudo=true
-# omarchy:examples=omarchy-opt-set gaming.steam.enable true
+# omarchy:examples=omarchy-opt-set omarchy.gaming.steam.enable true | omarchy-opt-set services.openssh.enable true
 
 # Some things the menu offers are not packages but options: omarchy.gaming.steam
 # also turns on programs.steam, Proton-GE and the firewall openings, none of
 # which come from installing the steam package. Those entries have to toggle the
 # option or they quietly do less than they claim.
+#
+# Paths are full NixOS option paths (omarchy.gaming.steam.enable,
+# services.openssh.enable), because several menu entries are plain NixOS
+# options rather than omarchy ones.
 #
 # Options live in omarchy-options.nix beside the flake, which is an ordinary
 # NixOS module, so the module system merges it with the rest of the
@@ -39,16 +43,16 @@ if [[ ! -f $file ]]; then
 HEADER
 fi
 
-line="  omarchy.$path = $value;"
-escaped="$(sed 's/[][\.*^$/]/\\&/g' <<<"omarchy.$path")"
+line="  $path = $value;"
+escaped="$(sed 's/[][\.*^$/]/\\&/g' <<<"$path")"
 
 if grep -qE "^\s*$escaped\s*=" "$file"; then
   sed -i "s|^\s*$escaped\s*=.*|$line|" "$file"
-  echo -e "\e[32mUpdated omarchy.$path = $value\e[0m"
+  echo -e "\e[32mUpdated $path = $value\e[0m"
 else
   # Insert before the closing brace so the file stays a valid attribute set.
   sed -i "0,/^}/s||$line\n}|" "$file"
-  echo -e "\e[32mSet omarchy.$path = $value\e[0m"
+  echo -e "\e[32mSet $path = $value\e[0m"
 fi
 
 if git -C "$flake_dir" rev-parse --git-dir >/dev/null 2>&1; then

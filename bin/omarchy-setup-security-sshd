@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# omarchy:summary=Enable the SSH daemon
+# omarchy:requires-sudo=true
+# omarchy:examples=omarchy-setup-security-sshd
+
+# services.openssh.enable rather than installing a package: on NixOS the daemon,
+# its unit and its firewall handling all come from the option.
+
+set -euo pipefail
+
+exec omarchy-opt-set services.openssh.enable true

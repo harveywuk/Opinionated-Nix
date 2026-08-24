@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# omarchy:summary=Remove Tailscale
+# omarchy:requires-sudo=true
+# omarchy:examples=omarchy-remove-service-tailscale
+
+set -euo pipefail
+
+exec omarchy-opt-unset services.tailscale.enable
