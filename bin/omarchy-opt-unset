@@ -1,0 +1,30 @@
+#!/bin/bash
+
+# omarchy:summary=Remove an omarchy option from the configuration and rebuild
+# omarchy:args=<option-path>
+# omarchy:requires-sudo=true
+# omarchy:examples=omarchy-opt-unset gaming.steam.enable
+
+# Removes the line rather than setting it to false, so the option falls back to
+# its declared default instead of being pinned off -- which matters for options
+# that default to the gaming.enable umbrella.
+
+set -euo pipefail
+
+path="${1-}"
+[[ -n $path ]] || { echo "Usage: omarchy-opt-unset <option-path>" >&2; exit 64; }
+
+flake_dir="$(omarchy-nix-flake-dir)"
+file="$flake_dir/omarchy-options.nix"
+escaped="$(sed 's/[][\.*^$/]/\\&/g' <<<"omarchy.$path")"
+
+if [[ ! -f $file ]] || ! grep -qE "^\s*$escaped\s*=" "$file"; then
+  echo -e "\e[33momarchy.$path is not set here; nothing to remove.\e[0m" >&2
+  exit 1
+fi
+
+sed -i "/^\s*$escaped\s*=/d" "$file"
+echo -e "\e[32mUnset omarchy.$path\e[0m"
+
+echo -e "\e[32m\nRebuilding\e[0m"
+sudo nixos-rebuild switch --flake "$flake_dir"

@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# omarchy:summary=Remove Lutris
+# omarchy:requires-sudo=true
+# omarchy:examples=omarchy-remove-gaming-lutris
+
+# Toggles omarchy.gaming.lutris.enable rather than installing a package: the
+# option carries the supporting configuration too. See
+# omarchy-gaming-component.
+
+set -euo pipefail
+
+exec omarchy-opt-unset "$(omarchy-gaming-component lutris)"

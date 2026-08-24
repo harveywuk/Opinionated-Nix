@@ -1,0 +1,59 @@
+#!/bin/bash
+
+# omarchy:summary=Set an omarchy option in the configuration and rebuild
+# omarchy:args=<option-path> <value>
+# omarchy:requires-sudo=true
+# omarchy:examples=omarchy-opt-set gaming.steam.enable true
+
+# Some things the menu offers are not packages but options: omarchy.gaming.steam
+# also turns on programs.steam, Proton-GE and the firewall openings, none of
+# which come from installing the steam package. Those entries have to toggle the
+# option or they quietly do less than they claim.
+#
+# Options live in omarchy-options.nix beside the flake, which is an ordinary
+# NixOS module, so the module system merges it with the rest of the
+# configuration. Add it once to your modules list:
+#
+#     modules = [ ./omarchy-options.nix ... ];
+
+set -euo pipefail
+
+path="${1-}"
+value="${2-}"
+[[ -n $path && -n $value ]] || { echo "Usage: omarchy-opt-set <option-path> <value>" >&2; exit 64; }
+
+flake_dir="$(omarchy-nix-flake-dir)"
+file="$flake_dir/omarchy-options.nix"
+
+if [[ ! -f $file ]]; then
+  echo -e "\e[32mCreating $file\e[0m"
+  cat >"$file" <<'HEADER'
+# Options set by the Omarchy menu. An ordinary NixOS module -- add it to your
+# flake's modules list:
+#
+#   modules = [ ./omarchy-options.nix ... ];
+#
+# Safe to edit by hand.
+{
+}
+HEADER
+fi
+
+line="  omarchy.$path = $value;"
+escaped="$(sed 's/[][\.*^$/]/\\&/g' <<<"omarchy.$path")"
+
+if grep -qE "^\s*$escaped\s*=" "$file"; then
+  sed -i "s|^\s*$escaped\s*=.*|$line|" "$file"
+  echo -e "\e[32mUpdated omarchy.$path = $value\e[0m"
+else
+  # Insert before the closing brace so the file stays a valid attribute set.
+  sed -i "0,/^}/s||$line\n}|" "$file"
+  echo -e "\e[32mSet omarchy.$path = $value\e[0m"
+fi
+
+if git -C "$flake_dir" rev-parse --git-dir >/dev/null 2>&1; then
+  git -C "$flake_dir" add "$file" 2>/dev/null || true
+fi
+
+echo -e "\e[32m\nRebuilding\e[0m"
+sudo nixos-rebuild switch --flake "$flake_dir"

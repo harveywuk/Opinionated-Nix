@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# omarchy:summary=Remove NVIDIA GeForce NOW
+# omarchy:requires-sudo=true
+# omarchy:examples=omarchy-remove-gaming-geforce-now
+
+# Toggles omarchy.gaming.geforceNow.enable rather than installing a package: the
+# option carries the supporting configuration too. See
+# omarchy-gaming-component.
+
+set -euo pipefail
+
+exec omarchy-opt-unset "$(omarchy-gaming-component geforce-now)"

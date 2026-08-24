@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# omarchy:summary=Remove Heroic
+# omarchy:requires-sudo=true
+# omarchy:examples=omarchy-remove-gaming-heroic
+
+# Toggles omarchy.gaming.heroic.enable rather than installing a package: the
+# option carries the supporting configuration too. See
+# omarchy-gaming-component.
+
+set -euo pipefail
+
+exec omarchy-opt-unset "$(omarchy-gaming-component heroic)"

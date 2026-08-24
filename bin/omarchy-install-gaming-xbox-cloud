@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# omarchy:summary=Install Xbox Cloud Gaming
+# omarchy:requires-sudo=true
+# omarchy:examples=omarchy-install-gaming-xbox-cloud
+
+# Toggles omarchy.gaming.xboxCloud.enable rather than installing a package: the
+# option carries the supporting configuration too. See
+# omarchy-gaming-component.
+
+set -euo pipefail
+
+exec omarchy-opt-set "$(omarchy-gaming-component xbox-cloud)" true
