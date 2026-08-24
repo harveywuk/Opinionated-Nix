@@ -1,0 +1,36 @@
+#!/bin/bash
+
+# omarchy:summary=Install a development environment
+# omarchy:args=<language-or-framework>
+# omarchy:requires-sudo=true
+# omarchy:examples=omarchy-install-dev-env python | omarchy-install-dev-env rails
+
+set -euo pipefail
+
+env_name="${1-}"
+[[ -n $env_name ]] || { echo "Usage: omarchy-install-dev-env <language>" >&2; exit 64; }
+
+# Checked explicitly: a failed command substitution inside a here-string does
+# not trip `set -e`, so an unknown environment would otherwise sail past with
+# an empty package list.
+if ! packages_raw="$(omarchy-dev-env-packages "$env_name")"; then
+  exit 2
+fi
+read -ra packages <<<"$packages_raw"
+
+echo -e "\e[32mInstalling $env_name: ${packages[*]}\e[0m"
+omarchy-pkg-install "${packages[@]}"
+
+case "$env_name" in
+  rails)
+    echo -e "\e[33m\nRuby is installed. Add Rails to your project's Gemfile\nrather than the system: bundle add rails\e[0m"
+    ;;
+  laravel)
+    echo -e "\e[33m\nPHP and Composer are installed. Create projects with:\ncomposer create-project laravel/laravel <name>\e[0m"
+    ;;
+  phoenix)
+    echo -e "\e[33m\nElixir is installed. Add the Phoenix generator per project:\nmix archive.install hex phx_new\e[0m"
+    ;;
+esac
+
+echo -e "\e[33m\nFor a per-project toolchain pinned independently of the system,\nuse a devShell -- see the README.\e[0m"

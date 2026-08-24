@@ -1,0 +1,48 @@
+#!/bin/bash
+
+# omarchy:summary=Print the nixpkgs attributes making up a development environment
+# omarchy:args=<language-or-framework>
+# omarchy:examples=omarchy-dev-env-packages python | omarchy-dev-env-packages laravel
+
+# Shared by omarchy-install-dev-env and omarchy-remove-dev-env so the two can
+# never disagree about what an environment consists of.
+#
+# Upstream Omarchy manages these with mise. Here they are nixpkgs packages
+# instead: mise's prebuilt runtimes rely on the FHS loader, and while nix-ld
+# covers that, it is provisioned with stdenv.cc.cc alone -- so a runtime needing
+# zlib/openssl/libffi fails at import time with an error pointing nowhere, and
+# fixing it means editing nix-ld.libraries and rebuilding, which defeats the
+# point of mise. Per-project toolchains belong in a devShell; see the README.
+#
+# Frameworks (rails, laravel, phoenix) resolve to their language plus its
+# package manager. The framework itself is a per-project dependency -- Rails
+# belongs in a Gemfile, not in the system closure.
+
+set -euo pipefail
+
+case "${1-}" in
+  ruby | rails)   echo "ruby" ;;
+  go)             echo "go" ;;
+  python)         echo "python3" ;;
+  node)           echo "nodejs" ;;
+  bun)            echo "bun" ;;
+  deno)           echo "deno" ;;
+  rust)           echo "rustc cargo" ;;
+  java)           echo "jdk" ;;
+  dotnet)         echo "dotnet-sdk" ;;
+  zig)            echo "zig" ;;
+  clojure)        echo "clojure" ;;
+  scala)          echo "scala" ;;
+  ocaml)          echo "ocaml opam" ;;
+  elixir | phoenix) echo "elixir erlang" ;;
+  php | laravel)  echo "php phpPackages.composer" ;;
+  symfony)        echo "php phpPackages.composer symfony-cli" ;;
+  "")
+    echo "omarchy-dev-env-packages: no environment given" >&2
+    exit 64
+    ;;
+  *)
+    echo "omarchy-dev-env-packages: unknown environment '$1'" >&2
+    exit 2
+    ;;
+esac
