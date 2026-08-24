@@ -65,6 +65,12 @@ case "${1-}" in
   fprintd)                    echo "fprintd" ;;
   pam-u2f)                    echo "pam_u2f" ;;
 
+  # Built by this repo (packages/voxtype.nix) and installed by the
+  # omarchy.voxtype option, not from nixpkgs -- so omarchy-voxtype-install
+  # toggles the option rather than calling omarchy-pkg-install. Mapped here so
+  # the menu's omarchy-pkg-present guard finds the binary once it is enabled.
+  voxtype-bin)                echo "voxtype" ;;
+
   # --- nerd fonts ---
   ttf-cascadia-mono-nerd)     echo "nerd-fonts.caskaydia-cove" ;;
   ttf-meslo-nerd)             echo "nerd-fonts.meslo-lg" ;;
@@ -75,7 +81,7 @@ case "${1-}" in
 
   # Not in nixpkgs at the time of writing. Listed explicitly so they report
   # "not packaged" rather than silently falling through to a bad guess.
-  zen-browser-bin | xpadneo-dkms | grok-bot | once-bin | openai-codex-desktop | t3code-bin | voxtype-bin)
+  zen-browser-bin | xpadneo-dkms | grok-bot | once-bin | openai-codex-desktop | t3code-bin)
     echo "omarchy-pkg-map: '$1' has no nixpkgs equivalent" >&2
     exit 2
     ;;
