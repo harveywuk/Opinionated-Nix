@@ -21,9 +21,22 @@ if [[ -n ${OMARCHY_NIX_FLAKE:-} ]]; then
   exit 0
 fi
 
+# Resolved before comparing, because /etc/nixos is very often a symlink to the
+# real configuration -- that is the recommended layout, not an edge case. Two
+# paths naming one directory is not ambiguity, and refusing there would break
+# exactly the setups that did it properly.
 candidates=()
+seen=()
 for dir in /etc/nixos "$HOME/nixos-config" "$HOME/.config/nixos" "$HOME/nixos"; do
-  [[ -f $dir/flake.nix ]] && candidates+=("$dir")
+  [[ -f $dir/flake.nix ]] || continue
+  real="$(readlink -f "$dir")"
+  duplicate=false
+  for s in "${seen[@]-}"; do
+    [[ $s == "$real" ]] && duplicate=true && break
+  done
+  $duplicate && continue
+  seen+=("$real")
+  candidates+=("$dir")
 done
 
 case ${#candidates[@]} in
